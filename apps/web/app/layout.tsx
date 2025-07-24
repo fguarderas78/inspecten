@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
 export default function DashboardLayout({
   children,
@@ -10,6 +11,7 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
   const menuItems = [
@@ -23,17 +25,20 @@ export default function DashboardLayout({
     { href: '/dashboard/settings', label: 'Configuración', icon: '⚙️' },
   ]
 
+  const handleLogout = () => {
+    router.push('/')
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
-      {/* Sidebar */}
       <aside style={{
         width: sidebarOpen ? '250px' : '60px',
         backgroundColor: 'white',
         boxShadow: '1px 0 3px rgba(0, 0, 0, 0.1)',
         transition: 'width 0.3s ease',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        position: 'relative'
       }}>
-        {/* Logo */}
         <div style={{
           padding: '20px',
           borderBottom: '1px solid #e5e7eb',
@@ -64,8 +69,7 @@ export default function DashboardLayout({
           </button>
         </div>
 
-        {/* Menu */}
-        <nav style={{ padding: '20px 0' }}>
+        <nav style={{ padding: '20px 0', marginBottom: '80px' }}>
           {menuItems.map((item) => {
             const isActive = pathname === item.href
             return (
@@ -90,26 +94,49 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* User Info */}
         <div style={{
           position: 'absolute',
-          bottom: '20px',
-          left: '20px',
-          right: '20px',
-          paddingTop: '20px',
-          borderTop: '1px solid #e5e7eb',
-          display: sidebarOpen ? 'block' : 'none'
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '16px',
+          borderTop: '1px solid #f0f0f0',
+          backgroundColor: '#fafafa'
         }}>
-          <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0' }}>
-            Francisco Guarderas
-          </p>
-          <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
-            Admin
-          </p>
+          {sidebarOpen && (
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ fontSize: '14px', color: '#374151', fontWeight: '500', margin: '0 0 4px 0' }}>
+                Francisco Guarderas
+              </p>
+              <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                admin@inspecten.com
+              </p>
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              padding: '10px',
+              backgroundColor: 'transparent',
+              border: '1px solid #e5e7eb',
+              borderRadius: '6px',
+              color: '#dc2626',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: sidebarOpen ? 'flex-start' : 'center',
+              gap: '8px'
+            }}
+          >
+            🚪
+            {sidebarOpen && 'Cerrar Sesión'}
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main style={{
         flex: 1,
         padding: '20px 40px',

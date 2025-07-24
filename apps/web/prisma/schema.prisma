@@ -6,107 +6,37 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// Modelo de Usuario
+// Modelos de ejemplo para INSPECTEN
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  emailVerified DateTime?
-  name          String?
-  image         String?
-  role          String    @default("inspector")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Para login tradicional (opcional)
-  password      String?
-
-  // Relaciones para NextAuth
-  accounts      Account[]
-  sessions      Session[]
-
-  // Relaciones de negocio
-  inspections   Inspection[]
-}
-
-// Modelos para NextAuth
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-// Modelo de Propiedad
-model Property {
-  id          String   @id @default(cuid())
-  name        String
-  address     String
-  owner       String
-  type        String   // Residencial, Comercial, Industrial
-  status      String   @default("active") // active, archived
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relaciones
-  inspections Inspection[]
-  budgets     Budget[]
-}
-
-// Modelo de Inspección
-model Inspection {
-  id         String   @id @default(cuid())
-  code       String   @unique
-  name       String
-  status     String   @default("scheduled") // scheduled, in-progress, completed
-  progress   Int      @default(0)
-  date       DateTime
-  comments   String?
-  clientName String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relaciones
-  propertyId String
-  property   Property @relation(fields: [propertyId], references: [id])
-  
-  inspectorId String
-  inspector   User     @relation(fields: [inspectorId], references: [id])
-}
-
-// Modelo de Presupuesto
-model Budget {
   id        String   @id @default(cuid())
-  amount    Float
-  status    String   @default("pending") // pending, approved, rejected
+  email     String   @unique
+  name      String?
+  role      String   @default("inspector")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
 
-  // Relaciones
+model Property {
+  id          String       @id @default(cuid())
+  name        String
+  address     String
+  type        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  inspections Inspection[]
+}
+
+model Inspection {
+  id         String   @id @default(cuid())
   propertyId String
   property   Property @relation(fields: [propertyId], references: [id])
+  status     String   @default("pending")
+  date       DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
