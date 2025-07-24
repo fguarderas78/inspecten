@@ -17,7 +17,7 @@ export default function DashboardLayout({
   const menuItems = [
     { href: '/dashboard', label: 'Dashboard', icon: '📊' },
     { href: '/dashboard/assets', label: 'Assets', icon: '🏠' },
-    { href: '/dashboard/inspections', label: 'Inspecciones', icon: '📋' },
+    { href: '/dashboard/propiedades', label: 'Propiedades', icon: '🏠' },
     { href: '/dashboard/tasks', label: 'Tareas', icon: '✓' },
     { href: '/dashboard/schedules', label: 'Agenda', icon: '📅' },
     { href: '/dashboard/users', label: 'Usuarios', icon: '👥' },
