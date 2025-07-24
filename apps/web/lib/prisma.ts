@@ -1,9 +1,26 @@
-import { PrismaClient } from '@prisma/client'
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+// Mock database para desarrollo sin Prisma
+export const prisma = {
+  user: {
+    findMany: async () => [],
+    findUnique: async () => null,
+    create: async (data: any) => ({ id: '1', ...data.data }),
+    update: async (data: any) => ({ id: '1', ...data.data }),
+    delete: async () => ({ id: '1' })
+  },
+  property: {
+    findMany: async () => [],
+    findUnique: async () => null,
+    create: async (data: any) => ({ id: '1', ...data.data }),
+    update: async (data: any) => ({ id: '1', ...data.data }),
+    delete: async () => ({ id: '1' })
+  },
+  inspection: {
+    findMany: async () => [],
+    findUnique: async () => null,
+    create: async (data: any) => ({ id: '1', ...data.data }),
+    update: async (data: any) => ({ id: '1', ...data.data }),
+    delete: async () => ({ id: '1' })
+  }
 }
 
-export const prisma = globalForPrisma.prisma ?? new PrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+export default prisma
