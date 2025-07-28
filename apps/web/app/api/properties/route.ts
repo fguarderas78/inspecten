@@ -1,96 +1,57 @@
 import { NextResponse } from 'next/server'
 
-// Datos temporales sin base de datos
-const mockProperties = [
-  {
-    id: '1',
-    name: 'Casa Moderna Valle',
-    address: 'Av. Principal 123, Valle de los Chillos',
-    type: 'residential',
-    owner: 'María González',
-    status: 'active',
-    createdAt: '2024-01-10'
-  },
-  {
-    id: '2',
-    name: 'Edificio Corporativo Centro',
-    address: 'Av. Amazonas N45-123, Quito',
-    type: 'commercial',
-    owner: 'Empresa XYZ',
-    status: 'active',
-    createdAt: '2024-01-12'
-  },
-  {
-    id: '3',
-    name: 'Bodega Industrial Norte',
-    address: 'Panamericana Norte Km 15',
-    type: 'industrial',
-    owner: 'Industrias ABC',
-    status: 'active',
-    createdAt: '2024-01-15'
+// Esta es una estructura básica. Necesitarás configurar Google Drive API
+export async function POST(request: Request) {
+  try {
+    const data = await request.json()
+    
+    // TODO: Configurar Google Drive API
+    // 1. Instalar: npm install googleapis
+    // 2. Configurar credenciales OAuth2
+    // 3. Crear carpeta en Drive si no existe
+    // 4. Guardar como Google Sheet o JSON
+    
+    // Por ahora simulamos el guardado
+    console.log('Guardando en Google Drive:', data)
+    
+    // Aquí irá el código para Google Drive:
+    /*
+    const auth = new google.auth.GoogleAuth({
+      keyFile: 'credentials.json',
+      scopes: ['https://www.googleapis.com/auth/drive.file'],
+    })
+    
+    const drive = google.drive({ version: 'v3', auth })
+    const sheets = google.sheets({ version: 'v4', auth })
+    
+    // Crear o actualizar archivo
+    */
+    
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Propiedad guardada',
+      id: Date.now().toString() 
+    })
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: 'Error al guardar' },
+      { status: 500 }
+    )
   }
-]
+}
 
 export async function GET() {
   try {
-    return NextResponse.json({ properties: mockProperties })
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Error fetching properties' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const newProperty = {
-      id: Date.now().toString(),
-      ...body,
-      status: 'active',
-      createdAt: new Date().toISOString()
-    }
+    // TODO: Leer propiedades desde Google Drive
     
-    return NextResponse.json(
-      { property: newProperty, message: 'Property created successfully' },
-      { status: 201 }
-    )
+    // Por ahora retornamos array vacío
+    return NextResponse.json({ 
+      success: true, 
+      propiedades: [] 
+    })
   } catch (error) {
     return NextResponse.json(
-      { error: 'Error creating property' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    const body = await request.json()
-    return NextResponse.json(
-      { property: { ...body, updatedAt: new Date().toISOString() } },
-      { status: 200 }
-    )
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Error updating property' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function DELETE(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    
-    return NextResponse.json(
-      { message: `Property ${id} deleted successfully` },
-      { status: 200 }
-    )
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Error deleting property' },
+      { success: false, error: 'Error al leer propiedades' },
       { status: 500 }
     )
   }

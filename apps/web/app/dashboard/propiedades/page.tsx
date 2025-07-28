@@ -1,190 +1,279 @@
 'use client'
+
 import { useState, useEffect } from 'react'
-import { Search, Plus, Filter, Building2, MapPin, User, Calendar, Archive, Upload, Camera, FolderOpen, X } from 'lucide-react'
+
+interface Propiedad {
+  id: string
+  nombre: string
+  direccion: string
+  tipo: 'Residencial' | 'Comercial' | 'Industrial'
+  propietario: string
+  telefono: string
+  email: string
+  superficie: string
+  habitaciones?: number
+  banos?: number
+  estacionamientos?: number
+  fechaRegistro: string
+  estado: 'Activa' | 'Inactiva'
+  ultimaInspeccion?: string
+  proximaInspeccion?: string
+  notas?: string
+  imagen?: string
+}
+
+interface NuevaInspeccion {
+  propiedadId: string
+  propiedadNombre: string
+  fecha: string
+  hora: string
+  inspector: string
+  notas?: string
+}
 
 export default function PropiedadesPage() {
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all')
+  const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [showModal, setShowModal] = useState(false)
-  const [showArchived, setShowArchived] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [properties, setProperties] = useState([])
-  const [newProperty, setNewProperty] = useState({
-    name: '',
-    address: '',
-    owner: '',
-    type: 'Residencial',
-    image: null as File | null,
-    imagePreview: ''
+  const [showInspeccionModal, setShowInspeccionModal] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterTipo, setFilterTipo] = useState('all')
+  const [previewImage, setPreviewImage] = useState<string>('')
+  
+  const [formData, setFormData] = useState<Partial<Propiedad>>({
+    tipo: 'Residencial',
+    estado: 'Activa'
   })
 
-  // Cargar propiedades desde la API
+  const [inspeccionData, setInspeccionData] = useState<NuevaInspeccion>({
+    propiedadId: '',
+    propiedadNombre: '',
+    fecha: '',
+    hora: '',
+    inspector: ''
+  })
+
+  // Lista de inspectores (después vendrá de la base de datos)
+  const inspectores = [
+    { id: '1', nombre: 'Juan Pérez' },
+    { id: '2', nombre: 'María García' },
+    { id: '3', nombre: 'Carlos López' },
+    { id: '4', nombre: 'Ana Martínez' }
+  ]
+
   useEffect(() => {
-    fetchProperties()
-  }, [showArchived])
+    cargarPropiedades()
+  }, [])
 
-  const fetchProperties = async () => {
+  // Cargar propiedades desde localStorage y Google Drive
+  const cargarPropiedades = async () => {
+    // Primero cargar de localStorage
+    const savedProps = localStorage.getItem('inspecten_propiedades')
+    if (savedProps) {
+      setPropiedades(JSON.parse(savedProps))
+    }
+
+    // Intentar cargar de Google Drive
     try {
-      setLoading(true)
-      const status = showArchived ? 'archived' : 'active'
-      const response = await fetch(`/api/properties?status=${status}`)
-      const data = await response.json()
+      const scriptUrl = 'https://script.google.com/macros/s/AKfycbzdWQUY4-aNy41_Pex_56gFOroxKnU44nsaBW3Ljp-q68L9zoyzTdrRXB2qAkGANWPg/exec'
       
-      if (response.ok) {
-        setProperties(data)
-      }
-    } catch (error) {
-      console.error('Error al cargar propiedades:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const filteredProperties = properties.filter((property: any) => {
-    const matchesSearch = property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.owner.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesType = filterType === 'all' || property.type === filterType
-    
-    return matchesSearch && matchesType
-  })
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setNewProperty({ ...newProperty, image: file })
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setNewProperty(prev => ({ ...prev, imagePreview: reader.result as string }))
-      }
-      reader.readAsDataURL(file)
-    }
-  }
-
-  const handleCreateProperty = async () => {
-    try {
-      const response = await fetch('/api/properties', {
+      const response = await fetch(scriptUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: newProperty.name,
-          address: newProperty.address,
-          owner: newProperty.owner,
-          type: newProperty.type,
-          imageUrl: newProperty.imagePreview || null
+          action: 'getProperties'
         })
       })
-
-      if (response.ok) {
-        // Recargar propiedades
-        fetchProperties()
-        setShowModal(false)
-        // Reset form
-        setNewProperty({
-          name: '',
-          address: '',
-          owner: '',
-          type: 'Residencial',
-          image: null,
-          imagePreview: ''
-        })
+      
+      const result = await response.json()
+      if (result.success && result.properties && result.properties.length > 0) {
+        setPropiedades(result.properties)
+        // Actualizar localStorage con datos de Drive
+        localStorage.setItem('inspecten_propiedades', JSON.stringify(result.properties))
       }
     } catch (error) {
-      console.error('Error al crear propiedad:', error)
+      console.error('Error al cargar de Google Drive:', error)
     }
   }
 
-  const handleArchiveToggle = async (propertyId: string, currentStatus: string) => {
+  // Manejar carga de imagen
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB máximo
+        alert('La imagen no debe superar los 5MB')
+        return
+      }
+      
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64String = reader.result as string
+        setPreviewImage(base64String)
+        setFormData({...formData, imagen: base64String})
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Guardar propiedad
+  const handleSavePropiedad = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
     try {
-      const newStatus = currentStatus === 'active' ? 'archived' : 'active'
-      const response = await fetch('/api/properties', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: propertyId,
-          status: newStatus
-        })
-      })
-
-      if (response.ok) {
-        fetchProperties()
+      const nuevaPropiedad: Propiedad = {
+        id: Date.now().toString(),
+        nombre: formData.nombre || '',
+        direccion: formData.direccion || '',
+        tipo: formData.tipo || 'Residencial',
+        propietario: formData.propietario || '',
+        telefono: formData.telefono || '',
+        email: formData.email || '',
+        superficie: formData.superficie || '',
+        habitaciones: formData.habitaciones,
+        banos: formData.banos,
+        estacionamientos: formData.estacionamientos,
+        fechaRegistro: new Date().toISOString().split('T')[0],
+        estado: formData.estado || 'Activa',
+        notas: formData.notas,
+        imagen: formData.imagen
       }
+
+      // Guardar en localStorage
+      const updatedProps = [...propiedades, nuevaPropiedad]
+      setPropiedades(updatedProps)
+      localStorage.setItem('inspecten_propiedades', JSON.stringify(updatedProps))
+
+      // Guardar en Google Drive
+      try {
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbzdWQUY4-aNy41_Pex_56gFOroxKnU44nsaBW3Ljp-q68L9zoyzTdrRXB2qAkGANWPg/exec'
+        
+        const response = await fetch(scriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'addProperty',
+            data: nuevaPropiedad
+          })
+        })
+        
+        const result = await response.json()
+        if (result.success) {
+          console.log('✅ Guardado en Google Drive exitosamente')
+          alert('Propiedad guardada exitosamente en Google Drive!')
+        } else {
+          console.error('Error:', result.message)
+          alert('Propiedad guardada localmente. Error en Drive: ' + result.message)
+        }
+      } catch (error) {
+        console.error('Error al guardar en Google Drive:', error)
+        alert('Propiedad guardada localmente. No se pudo conectar con Drive.')
+      }
+
+      setShowModal(false)
+      setFormData({ tipo: 'Residencial', estado: 'Activa' })
+      setPreviewImage('')
     } catch (error) {
-      console.error('Error al actualizar propiedad:', error)
+      alert('Error al guardar la propiedad')
+    } finally {
+      setLoading(false)
     }
   }
+
+  // Abrir modal de nueva inspección
+  const handleNuevaInspeccion = (propiedad: Propiedad) => {
+    // Fecha mínima: mañana
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const minDate = tomorrow.toISOString().split('T')[0]
+    
+    setInspeccionData({
+      propiedadId: propiedad.id,
+      propiedadNombre: propiedad.nombre,
+      fecha: minDate,
+      hora: '09:00',
+      inspector: ''
+    })
+    setShowInspeccionModal(true)
+  }
+
+  // Guardar inspección
+  const handleSaveInspeccion = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    try {
+      // Aquí guardarías la inspección en la base de datos
+      const inspecciones = JSON.parse(localStorage.getItem('inspecten_inspecciones') || '[]')
+      const nuevaInspeccion = {
+        ...inspeccionData,
+        id: Date.now().toString(),
+        estado: 'Programada',
+        fechaCreacion: new Date().toISOString()
+      }
+      
+      inspecciones.push(nuevaInspeccion)
+      localStorage.setItem('inspecten_inspecciones', JSON.stringify(inspecciones))
+      
+      alert(`Inspección programada para el ${inspeccionData.fecha} a las ${inspeccionData.hora} con ${inspectores.find(i => i.id === inspeccionData.inspector)?.nombre}`)
+      setShowInspeccionModal(false)
+    } catch (error) {
+      alert('Error al programar la inspección')
+    }
+  }
+
+  // Manejar ver detalles
+  const handleVerDetalles = (propiedad: Propiedad) => {
+    alert(`Detalles de ${propiedad.nombre}:\n\nDirección: ${propiedad.direccion}\nPropietario: ${propiedad.propietario}\nTeléfono: ${propiedad.telefono}\nEmail: ${propiedad.email || 'No registrado'}\nSuperficie: ${propiedad.superficie || 'No especificada'}\n\nNotas: ${propiedad.notas || 'Sin notas'}`)
+    // Aquí podrías abrir un modal más elaborado o navegar a una página de detalles
+  }
+
+  // Filtrar propiedades
+  const propiedadesFiltradas = propiedades.filter(prop => {
+    const matchSearch = prop.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       prop.direccion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                       prop.propietario.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchTipo = filterTipo === 'all' || prop.tipo === filterTipo
+    return matchSearch && matchTipo
+  })
 
   return (
     <div>
-      {/* Header */}
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ 
-          fontSize: '32px', 
-          fontWeight: '600', 
-          color: '#111827', 
-          marginBottom: '8px',
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}>
           Propiedades
         </h1>
-        <p style={{ fontSize: '16px', color: '#6b7280' }}>
-          Gestiona las propiedades registradas en el sistema
-        </p>
+        <p style={{ color: '#6b7280' }}>Gestiona todas las propiedades registradas</p>
       </div>
 
-      {/* Filters and Actions */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '16px', 
-        marginBottom: '24px',
-        flexWrap: 'wrap'
-      }}>
-        {/* Search */}
-        <div style={{ 
-          flex: 1, 
-          minWidth: '300px',
-          position: 'relative' 
-        }}>
-          <Search style={{ 
-            position: 'absolute', 
-            left: '12px', 
-            top: '50%', 
-            transform: 'translateY(-50%)',
-            color: '#9ca3af'
-          }} size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por nombre, dirección o propietario..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px 10px 40px',
-              border: '1px solid #e5e7eb',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontFamily: "'Inter', sans-serif"
-            }}
-          />
-        </div>
-
-        {/* Filter by Type */}
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
+      <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <input
+          type="text"
+          placeholder="Buscar por nombre, dirección o propietario..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
           style={{
-            padding: '10px 16px',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
+            flex: 1,
+            minWidth: '300px',
+            padding: '8px 12px',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
+            fontSize: '14px'
+          }}
+        />
+        
+        <select
+          value={filterTipo}
+          onChange={(e) => setFilterTipo(e.target.value)}
+          style={{
+            padding: '8px 12px',
+            border: '1px solid #d1d5db',
+            borderRadius: '6px',
             fontSize: '14px',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontFamily: "'Inter', sans-serif"
+            backgroundColor: 'white'
           }}
         >
           <option value="all">Todos los tipos</option>
@@ -193,204 +282,175 @@ export default function PropiedadesPage() {
           <option value="Industrial">Industrial</option>
         </select>
 
-        {/* Toggle Archived */}
-        <button
-          onClick={() => setShowArchived(!showArchived)}
-          style={{
-            padding: '10px 16px',
-            border: '1px solid #e5e7eb',
-            borderRadius: '8px',
-            backgroundColor: showArchived ? '#fef2f2' : 'white',
-            color: showArchived ? '#dc2626' : '#374151',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '500',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.2s',
-            fontFamily: "'Inter', sans-serif"
-          }}
-        >
-          <Archive size={18} />
-          {showArchived ? 'Ver Activas' : 'Ver Archivadas'}
-        </button>
-
-        {/* New Property Button */}
         <button
           onClick={() => setShowModal(true)}
           style={{
-            padding: '10px 20px',
+            padding: '8px 16px',
             backgroundColor: '#dc2626',
             color: 'white',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '6px',
             fontSize: '14px',
             fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontFamily: "'Inter', sans-serif"
+            cursor: 'pointer'
           }}
         >
-          <Plus size={18} />
-          Nueva Propiedad
+          + Nueva Propiedad
         </button>
       </div>
 
-      {/* Status Bar */}
-      <div style={{ 
-        padding: '12px 16px',
-        backgroundColor: showArchived ? '#fef3c7' : '#dbeafe',
-        borderRadius: '8px',
-        marginBottom: '24px',
-        fontSize: '14px',
-        color: showArchived ? '#92400e' : '#1e40af'
-      }}>
-        {loading ? 
-          'Cargando propiedades...' :
-          showArchived ? 
-            `Mostrando ${filteredProperties.length} propiedades archivadas` : 
-            `Mostrando ${filteredProperties.length} propiedades activas`
-        }
-      </div>
-
-      {/* Properties Grid - Smaller Cards */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-          <p>Cargando propiedades...</p>
+      {propiedadesFiltradas.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '60px 20px',
+          backgroundColor: 'white',
+          borderRadius: '8px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+        }}>
+          <span style={{ fontSize: '48px', display: 'block', marginBottom: '16px' }}>🏠</span>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '8px' }}>
+            No hay propiedades registradas
+          </h3>
+          <p style={{ color: '#6b7280', marginBottom: '16px' }}>
+            Comienza agregando tu primera propiedad
+          </p>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer'
+            }}
+          >
+            + Agregar Primera Propiedad
+          </button>
         </div>
       ) : (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
-          gap: '20px' 
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+          gap: '16px'
         }}>
-          {filteredProperties.map((property: any) => (
-            <div key={property.id} style={{
-              backgroundColor: 'white',
-              borderRadius: '10px',
-              overflow: 'hidden',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-              border: '1px solid #e5e7eb',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              cursor: 'pointer',
-              opacity: property.status === 'archived' ? 0.7 : 1
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)'
-            }}>
-              {/* Image - Smaller */}
-              <div style={{ 
-                height: '140px', 
+          {propiedadesFiltradas.map((propiedad) => (
+            <div
+              key={propiedad.id}
+              style={{
+                backgroundColor: 'white',
+                borderRadius: '8px',
                 overflow: 'hidden',
-                position: 'relative'
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                transition: 'transform 0.2s',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={{ 
+                height: '150px', 
+                backgroundColor: '#e5e7eb', 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                overflow: 'hidden'
               }}>
-                <img 
-                  src={property.imageUrl || 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=400'} 
-                  alt={property.name}
-                  style={{ 
-                    width: '100%', 
-                    height: '100%', 
-                    objectFit: 'cover' 
-                  }}
-                />
-                {property.status === 'archived' && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '8px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                    color: 'white',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    <Archive size={14} />
-                    Archivada
-                  </div>
+                {propiedad.imagen ? (
+                  <img 
+                    src={propiedad.imagen} 
+                    alt={propiedad.nombre}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover' 
+                    }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '36px', color: '#9ca3af' }}>🏠</span>
                 )}
+                <span style={{
+                  position: 'absolute',
+                  top: '8px',
+                  right: '8px',
+                  padding: '2px 6px',
+                  backgroundColor: propiedad.estado === 'Activa' ? '#10b981' : '#6b7280',
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontSize: '11px'
+                }}>
+                  {propiedad.estado}
+                </span>
               </div>
 
-              {/* Content */}
-              <div style={{ padding: '16px' }}>
+              <div style={{ padding: '12px' }}>
                 <h3 style={{ 
                   fontSize: '16px', 
                   fontWeight: '600', 
-                  marginBottom: '8px',
-                  color: '#111827'
+                  color: '#111827',
+                  marginBottom: '6px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}>
-                  {property.name}
+                  {propiedad.nombre}
                 </h3>
                 
-                <div style={{ 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  gap: '6px',
-                  fontSize: '13px',
-                  color: '#6b7280'
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: '#6b7280', 
+                  marginBottom: '8px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MapPin size={14} />
-                    <span>{property.address}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <User size={14} />
-                    <span>{property.owner}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Calendar size={14} />
-                    <span>Creada: {new Date(property.createdAt).toLocaleDateString()}</span>
+                  📍 {propiedad.direccion}
+                </p>
+
+                <div style={{ fontSize: '12px', marginBottom: '10px' }}>
+                  <div style={{ marginBottom: '2px' }}><strong>Tipo:</strong> {propiedad.tipo}</div>
+                  <div style={{ 
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    <strong>Propietario:</strong> {propiedad.propietario}
                   </div>
                 </div>
 
-                {/* Type Badge and Action */}
-                <div style={{ 
-                  marginTop: '12px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <span style={{
-                    padding: '4px 12px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    backgroundColor: 
-                      property.type === 'Residencial' ? '#dbeafe' :
-                      property.type === 'Comercial' ? '#fef3c7' : '#e0e7ff',
-                    color: 
-                      property.type === 'Residencial' ? '#1e40af' :
-                      property.type === 'Comercial' ? '#92400e' : '#3730a3'
-                  }}>
-                    {property.type}
-                  </span>
-                  
+                <div style={{ display: 'flex', gap: '6px' }}>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleArchiveToggle(property.id, property.status)
-                    }}
+                    onClick={() => handleNuevaInspeccion(propiedad)}
                     style={{
-                      padding: '4px 8px',
-                      fontSize: '12px',
-                      border: '1px solid #e5e7eb',
+                      flex: 1,
+                      padding: '5px 10px',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      border: 'none',
                       borderRadius: '4px',
-                      backgroundColor: 'white',
-                      cursor: 'pointer',
-                      color: property.status === 'active' ? '#dc2626' : '#059669'
+                      fontSize: '12px',
+                      cursor: 'pointer'
                     }}
                   >
-                    {property.status === 'active' ? 'Archivar' : 'Activar'}
+                    Nueva Inspección
+                  </button>
+                  <button
+                    onClick={() => handleVerDetalles(propiedad)}
+                    style={{
+                      flex: 1,
+                      padding: '5px 10px',
+                      backgroundColor: 'white',
+                      color: '#374151',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Ver Detalles
                   </button>
                 </div>
               </div>
@@ -399,7 +459,7 @@ export default function PropiedadesPage() {
         </div>
       )}
 
-      {/* Modal for New Property */}
+      {/* Modal de Nueva Propiedad */}
       {showModal && (
         <div style={{
           position: 'fixed',
@@ -411,256 +471,634 @@ export default function PropiedadesPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000
+          zIndex: 50,
+          padding: '20px'
         }}>
           <div style={{
             backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '32px',
-            width: '90%',
-            maxWidth: '500px',
+            borderRadius: '8px',
+            width: '100%',
+            maxWidth: '600px',
             maxHeight: '90vh',
             overflow: 'auto'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: '600' }}>Nueva Propiedad</h2>
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                Nueva Propiedad
+              </h2>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false)
+                  setPreviewImage('')
+                  setFormData({ tipo: 'Residencial', estado: 'Activa' })
+                }}
                 style={{
                   background: 'none',
                   border: 'none',
+                  fontSize: '24px',
                   cursor: 'pointer',
                   color: '#6b7280'
                 }}
               >
-                <X size={24} />
+                ×
               </button>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); handleCreateProperty(); }}>
-              {/* Image Upload */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '8px', 
-                  fontSize: '14px', 
-                  fontWeight: '500' 
-                }}>
-                  Imagen de la Propiedad
-                </label>
-                <div style={{
-                  border: '2px dashed #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '20px',
-                  textAlign: 'center',
-                  backgroundColor: '#f9fafb'
-                }}>
-                  {newProperty.imagePreview ? (
-                    <div style={{ position: 'relative' }}>
-                      <img 
-                        src={newProperty.imagePreview} 
-                        alt="Preview" 
-                        style={{ 
-                          maxWidth: '100%', 
-                          maxHeight: '200px', 
-                          borderRadius: '8px' 
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setNewProperty({ ...newProperty, image: null, imagePreview: '' })}
-                        style={{
-                          position: 'absolute',
-                          top: '8px',
-                          right: '8px',
-                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '50%',
-                          width: '32px',
-                          height: '32px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageUpload}
-                        style={{ display: 'none' }}
-                        id="image-upload"
-                      />
-                      <label htmlFor="image-upload" style={{ cursor: 'pointer' }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          alignItems: 'center', 
-                          gap: '12px' 
-                        }}>
-                          <div style={{ 
-                            display: 'flex', 
-                            gap: '16px',
-                            marginBottom: '8px'
-                          }}>
-                            <div style={{
-                              padding: '12px',
-                              backgroundColor: '#fee2e2',
-                              borderRadius: '8px',
-                              color: '#dc2626'
-                            }}>
-                              <Upload size={24} />
-                            </div>
-                            <div style={{
-                              padding: '12px',
-                              backgroundColor: '#dbeafe',
-                              borderRadius: '8px',
-                              color: '#3b82f6'
-                            }}>
-                              <Camera size={24} />
-                            </div>
-                            <div style={{
-                              padding: '12px',
-                              backgroundColor: '#d1fae5',
-                              borderRadius: '8px',
-                              color: '#10b981'
-                            }}>
-                              <FolderOpen size={24} />
-                            </div>
-                          </div>
-                          <p style={{ fontSize: '14px', color: '#6b7280' }}>
-                            Click para subir imagen desde tu dispositivo
+            <form onSubmit={handleSavePropiedad} style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gap: '16px' }}>
+                {/* Sección de Imagen */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500' }}>
+                    Fotografía de la Propiedad
+                  </label>
+                  <div style={{ 
+                    border: '2px dashed #d1d5db', 
+                    borderRadius: '8px', 
+                    padding: '20px',
+                    textAlign: 'center',
+                    backgroundColor: '#f9fafb',
+                    position: 'relative'
+                  }}>
+                    {previewImage ? (
+                      <div style={{ position: 'relative' }}>
+                        <img 
+                          src={previewImage} 
+                          alt="Preview" 
+                          style={{ 
+                            maxWidth: '100%', 
+                            maxHeight: '200px', 
+                            borderRadius: '4px',
+                            marginBottom: '10px'
+                          }} 
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPreviewImage('')
+                            setFormData({...formData, imagen: ''})
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '-10px',
+                            right: '-10px',
+                            backgroundColor: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '30px',
+                            height: '30px',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 5
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <label 
+                          htmlFor="property-image-upload"
+                          style={{
+                            cursor: 'pointer',
+                            display: 'block',
+                            width: '100%',
+                            height: '100%'
+                          }}
+                        >
+                          <span style={{ fontSize: '48px', color: '#9ca3af', display: 'block', marginBottom: '8px' }}>
+                            📷
+                          </span>
+                          <p style={{ color: '#6b7280', marginBottom: '8px' }}>
+                            Click para subir imagen o arrastra aquí
                           </p>
-                          <p style={{ fontSize: '12px', color: '#9ca3af' }}>
-                            Soporta: JPG, PNG, GIF (máx. 10MB)
+                          <p style={{ color: '#9ca3af', fontSize: '12px' }}>
+                            PNG, JPG hasta 5MB
                           </p>
-                        </div>
+                        </label>
+                        <input
+                          id="property-image-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          style={{
+                            display: 'none'
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Información Básica */}
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+                    Información Básica
+                  </h3>
+                  
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                        Nombre de la Propiedad *
                       </label>
-                    </>
-                  )}
+                      <input
+                        type="text"
+                        required
+                        value={formData.nombre || ''}
+                        onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                        Dirección *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.direccion || ''}
+                        onChange={(e) => setFormData({...formData, direccion: e.target.value})}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                          Tipo de Propiedad *
+                        </label>
+                        <select
+                          required
+                          value={formData.tipo || 'Residencial'}
+                          onChange={(e) => setFormData({...formData, tipo: e.target.value as any})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            backgroundColor: 'white'
+                          }}
+                        >
+                          <option value="Residencial">Residencial</option>
+                          <option value="Comercial">Comercial</option>
+                          <option value="Industrial">Industrial</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                          Superficie
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="ej: 150 m²"
+                          value={formData.superficie || ''}
+                          onChange={(e) => setFormData({...formData, superficie: e.target.value})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información del Propietario */}
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+                    Información del Propietario
+                  </h3>
+                  
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                        Nombre del Propietario *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.propietario || ''}
+                        onChange={(e) => setFormData({...formData, propietario: e.target.value})}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '6px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                          Teléfono *
+                        </label>
+                        <input
+                          type="tel"
+                          required
+                          value={formData.telefono || ''}
+                          onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={formData.email || ''}
+                          onChange={(e) => setFormData({...formData, email: e.target.value})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Características (solo para residencial) */}
+                {formData.tipo === 'Residencial' && (
+                  <div>
+                    <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+                      Características
+                    </h3>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                          Habitaciones
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.habitaciones || ''}
+                          onChange={(e) => setFormData({...formData, habitaciones: parseInt(e.target.value)})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                          Baños
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.banos || ''}
+                          onChange={(e) => setFormData({...formData, banos: parseInt(e.target.value)})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                          Estacionamientos
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.estacionamientos || ''}
+                          onChange={(e) => setFormData({...formData, estacionamientos: parseInt(e.target.value)})}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '6px',
+                            fontSize: '14px'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Notas */}
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Notas adicionales
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={formData.notas || ''}
+                    onChange={(e) => setFormData({...formData, notas: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      resize: 'vertical'
+                    }}
+                  />
                 </div>
               </div>
 
-              {/* Property Name */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '8px', 
-                  fontSize: '14px', 
-                  fontWeight: '500' 
-                }}>
-                  Nombre de la Propiedad
-                </label>
-                <input
-                  type="text"
-                  value={newProperty.name}
-                  onChange={(e) => setNewProperty({ ...newProperty, name: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
-
-              {/* Address */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '8px', 
-                  fontSize: '14px', 
-                  fontWeight: '500' 
-                }}>
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  value={newProperty.address}
-                  onChange={(e) => setNewProperty({ ...newProperty, address: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
-
-              {/* Owner */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '8px', 
-                  fontSize: '14px', 
-                  fontWeight: '500' 
-                }}>
-                  Propietario
-                </label>
-                <input
-                  type="text"
-                  value={newProperty.owner}
-                  onChange={(e) => setNewProperty({ ...newProperty, owner: e.target.value })}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
-
-              {/* Type */}
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ 
-                  display: 'block', 
-                  marginBottom: '8px', 
-                  fontSize: '14px', 
-                  fontWeight: '500' 
-                }}>
-                  Tipo de Propiedad
-                </label>
-                <select
-                  value={newProperty.type}
-                  onChange={(e) => setNewProperty({ ...newProperty, type: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
-                    fontSize: '14px',
-                    backgroundColor: 'white'
-                  }}
-                >
-                  <option value="Residencial">Residencial</option>
-                  <option value="Comercial">Comercial</option>
-                  <option value="Industrial">Industrial</option>
-                </select>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              {/* Botones */}
+              <div style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                marginTop: '24px',
+                paddingTop: '24px',
+                borderTop: '1px solid #e5e7eb'
+              }}>
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false)
+                    setPreviewImage('')
+                    setFormData({ tipo: 'Residencial', estado: 'Activa' })
+                  }}
                   style={{
-                    padding: '10px 20px',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
+                    flex: 1,
+                    padding: '10px',
                     backgroundColor: 'white',
                     color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    backgroundColor: loading ? '#9ca3af' : '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {loading ? 'Guardando...' : 'Guardar Propiedad'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Nueva Inspección */}
+      {showInspeccionModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            padding: '20px'
+          }}
+          onClick={(e) => {
+            // Cerrar si se hace click en el fondo oscuro
+            if (e.target === e.currentTarget) {
+              setShowInspeccionModal(false)
+            }
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: 'white',
+              borderRadius: '8px',
+              width: '100%',
+              maxWidth: '500px',
+              position: 'relative'
+            }}
+            onClick={(e) => e.stopPropagation()} // Evitar que se cierre al hacer click dentro
+          >
+            <div style={{
+              padding: '20px',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>
+                Programar Nueva Inspección
+              </h2>
+              <button
+                onClick={() => setShowInspeccionModal(false)}
+                type="button"
+                style={{
+                  position: 'absolute',
+                  top: '20px',
+                  right: '20px',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#6b7280',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px',
+                  zIndex: 10
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                ×
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveInspeccion} style={{ padding: '20px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
+                  Propiedad: {inspeccionData.propiedadNombre}
+                </h3>
+              </div>
+
+              <div style={{ display: 'grid', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Fecha de Inspección *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    min={new Date().toISOString().split('T')[0]}
+                    value={inspeccionData.fecha}
+                    onChange={(e) => setInspeccionData({...inspeccionData, fecha: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Hora *
+                  </label>
+                  <input
+                    type="time"
+                    required
+                    value={inspeccionData.hora}
+                    onChange={(e) => setInspeccionData({...inspeccionData, hora: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Inspector Asignado *
+                  </label>
+                  <select
+                    required
+                    value={inspeccionData.inspector}
+                    onChange={(e) => setInspeccionData({...inspeccionData, inspector: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="">Seleccionar inspector...</option>
+                    {inspectores.map(inspector => (
+                      <option key={inspector.id} value={inspector.id}>
+                        {inspector.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Notas para el inspector
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={inspeccionData.notas || ''}
+                    onChange={(e) => setInspeccionData({...inspeccionData, notas: e.target.value})}
+                    placeholder="Información adicional, puntos de atención especial, etc."
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                {/* Vista previa del calendario */}
+                <div style={{
+                  padding: '12px',
+                  backgroundColor: '#f3f4f6',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}>
+                  <p style={{ marginBottom: '4px' }}>
+                    <strong>📅 Fecha:</strong> {inspeccionData.fecha ? new Date(inspeccionData.fecha + 'T00:00:00').toLocaleDateString('es-ES', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    }) : ''}
+                  </p>
+                  <p>
+                    <strong>🕐 Hora:</strong> {inspeccionData.hora}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ 
+                display: 'flex', 
+                gap: '12px', 
+                marginTop: '24px',
+                paddingTop: '24px',
+                borderTop: '1px solid #e5e7eb'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowInspeccionModal(false)}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    backgroundColor: 'white',
+                    color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
                     fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer'
@@ -671,7 +1109,8 @@ export default function PropiedadesPage() {
                 <button
                   type="submit"
                   style={{
-                    padding: '10px 20px',
+                    flex: 1,
+                    padding: '10px',
                     backgroundColor: '#dc2626',
                     color: 'white',
                     border: 'none',
@@ -681,7 +1120,7 @@ export default function PropiedadesPage() {
                     cursor: 'pointer'
                   }}
                 >
-                  Crear Propiedad
+                  Programar Inspección
                 </button>
               </div>
             </form>
