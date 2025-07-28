@@ -1,44 +1,28 @@
 'use client'
-import { useState } from 'react'
-import { TrendingUp, TrendingDown, Users, ClipboardCheck, CheckCircle2, Clock, AlertCircle, DollarSign } from 'lucide-react'
+
+import { useState, useEffect } from 'react'
 
 export default function DashboardPage() {
-  const [period, setPeriod] = useState('week')
-
-  const stats = {
+  const [stats, setStats] = useState({
     totalInspections: 156,
     completedInspections: 142,
     pendingInspections: 14,
-    totalTasks: 89,
-    totalBudgets: 47,
-    budgetsApproved: 32,
-    budgetsPending: 15,
-    totalRevenue: 125840
-  }
+    totalProperties: 48,
+    activeProperties: 45,
+    scheduledThisWeek: 8
+  })
 
   const recentInspections = [
-    { id: 'INS001', property: 'Casa Residencial Norte', progress: 100, status: 'completed', date: '2024-03-20' },
-    { id: 'INS002', property: 'Edificio Comercial Centro', progress: 75, status: 'in-progress', date: '2024-03-21' },
-    { id: 'INS003', property: 'Bodega Industrial Sur', progress: 30, status: 'in-progress', date: '2024-03-22' },
+    { id: 1, property: 'Casa Valle de los Chillos', date: '2024-01-25', status: 'completed', inspector: 'Juan Pérez' },
+    { id: 2, property: 'Edificio Centro Norte', date: '2024-01-24', status: 'pending', inspector: 'María García' },
+    { id: 3, property: 'Local Comercial La Mariscal', date: '2024-01-23', status: 'in_progress', inspector: 'Carlos López' },
+    { id: 4, property: 'Bodega Industrial Norte', date: '2024-01-22', status: 'completed', inspector: 'Ana Martínez' },
   ]
 
-  const pendingTasks = [
-    { id: 1, title: 'Revisar planos eléctricos', priority: 'high', assignee: 'Carlos Méndez' },
-    { id: 2, title: 'Completar informe INS002', priority: 'medium', assignee: 'Ana Torres' },
-    { id: 3, title: 'Verificar sistema contra incendios', priority: 'high', assignee: 'Luis García' },
-  ]
-
-  const upcomingInspections = [
-    { id: 'INS004', property: 'Apartamento 5B Torre Sol', date: '2024-03-25', time: '09:00 AM', inspector: 'Juan Pérez' },
-    { id: 'INS005', property: 'Local Comercial Plaza Mayor', date: '2024-03-25', time: '02:00 PM', inspector: 'María Silva' },
-    { id: 'INS006', property: 'Casa Conjunto Cerrado', date: '2024-03-26', time: '10:00 AM', inspector: 'Roberto Díaz' },
-  ]
-
-  const budgetStats = [
-    { label: 'Presupuestos Este Mes', value: 12, change: '+15%', positive: true },
-    { label: 'Valor Total', value: '$45,280', change: '+8%', positive: true },
-    { label: 'Tasa de Aprobación', value: '68%', change: '-5%', positive: false },
-    { label: 'Tiempo Promedio', value: '3.2 días', change: '-12%', positive: true },
+  const upcomingTasks = [
+    { id: 1, task: 'Inspección de seguridad', property: 'Casa Valle', dueDate: '2024-01-26', priority: 'high' },
+    { id: 2, task: 'Revisión eléctrica', property: 'Edificio Centro', dueDate: '2024-01-27', priority: 'medium' },
+    { id: 3, task: 'Evaluación estructural', property: 'Bodega Norte', dueDate: '2024-01-28', priority: 'low' },
   ]
 
   return (
@@ -47,457 +31,318 @@ export default function DashboardPage() {
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ 
           fontSize: '32px', 
-          fontWeight: '600', 
-          color: '#111827', 
-          marginBottom: '8px',
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          fontWeight: '700', 
+          color: '#111827',
+          margin: '0 0 8px 0',
           letterSpacing: '-0.5px'
         }}>
-          Dashboard
+          Panel de Control
         </h1>
         <p style={{ 
           fontSize: '16px', 
-          color: '#6b7280',
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" 
+          color: '#6B7280',
+          margin: 0
         }}>
-          Resumen de actividades y métricas
+          Bienvenido de vuelta, Francisco. Aquí está el resumen de hoy.
         </p>
       </div>
 
-      {/* Period Selector */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'inline-flex', backgroundColor: 'white', borderRadius: '8px', padding: '4px', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
-          {['week', 'month', 'year'].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                borderRadius: '6px',
-                backgroundColor: period === p ? '#dc2626' : 'transparent',
-                color: period === p ? 'white' : '#4b5563',
-                cursor: 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                transition: 'all 0.2s',
-                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-              }}
-            >
-              {p === 'week' ? 'Semana' : p === 'month' ? 'Mes' : 'Año'}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Stats Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-        gap: '20px', 
-        marginBottom: '32px' 
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+        gap: '24px',
+        marginBottom: '40px'
       }}>
-        {/* Inspections Card */}
+        {/* Total Inspections */}
         <div style={{
           backgroundColor: 'white',
           padding: '24px',
           borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #f0f0f0'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #f3f4f6'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 style={{ 
-              fontSize: '14px', 
-              fontWeight: '500', 
-              color: '#6b7280',
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-            }}>
-              Total Inspecciones
-            </h3>
-            <ClipboardCheck size={20} color="#dc2626" />
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '600', color: '#111827', fontFamily: "'Inter', sans-serif" }}>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#6B7280',
+            margin: '0 0 8px 0',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            Total Inspecciones
+          </h3>
+          <p style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#111827',
+            margin: '0 0 4px 0'
+          }}>
             {stats.totalInspections}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginTop: '8px', gap: '4px' }}>
-            <TrendingUp size={16} color="#10b981" />
-            <span style={{ fontSize: '14px', color: '#10b981' }}>+12% este mes</span>
-          </div>
+          </p>
+          <p style={{
+            fontSize: '13px',
+            color: '#10B981',
+            margin: 0
+          }}>
+            +12% desde el mes pasado
+          </p>
         </div>
 
-        {/* Completed Card */}
+        {/* Completed */}
         <div style={{
           backgroundColor: 'white',
           padding: '24px',
           borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #f0f0f0'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #f3f4f6'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 style={{ 
-              fontSize: '14px', 
-              fontWeight: '500', 
-              color: '#6b7280',
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-            }}>
-              Completadas
-            </h3>
-            <CheckCircle2 size={20} color="#10b981" />
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '600', color: '#111827', fontFamily: "'Inter', sans-serif" }}>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#6B7280',
+            margin: '0 0 8px 0',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            Completadas
+          </h3>
+          <p style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#10B981',
+            margin: '0 0 4px 0'
+          }}>
             {stats.completedInspections}
-          </div>
-          <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>
-            91% de completitud
-          </div>
+          </p>
+          <p style={{
+            fontSize: '13px',
+            color: '#6B7280',
+            margin: 0
+          }}>
+            91% de cumplimiento
+          </p>
         </div>
 
-        {/* Revenue Card */}
+        {/* Pending */}
         <div style={{
           backgroundColor: 'white',
           padding: '24px',
           borderRadius: '12px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #f0f0f0'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #f3f4f6'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <h3 style={{ 
-              fontSize: '14px', 
-              fontWeight: '500', 
-              color: '#6b7280',
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-            }}>
-              Ingresos Totales
-            </h3>
-            <DollarSign size={20} color="#3b82f6" />
-          </div>
-          <div style={{ fontSize: '32px', fontWeight: '600', color: '#111827', fontFamily: "'Inter', sans-serif" }}>
-            ${stats.totalRevenue.toLocaleString('es-ES')}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', marginTop: '8px', gap: '4px' }}>
-            <TrendingUp size={16} color="#10b981" />
-            <span style={{ fontSize: '14px', color: '#10b981' }}>+23% vs mes anterior</span>
-          </div>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#6B7280',
+            margin: '0 0 8px 0',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            Pendientes
+          </h3>
+          <p style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#F59E0B',
+            margin: '0 0 4px 0'
+          }}>
+            {stats.pendingInspections}
+          </p>
+          <p style={{
+            fontSize: '13px',
+            color: '#6B7280',
+            margin: 0
+          }}>
+            Requieren atención
+          </p>
+        </div>
+
+        {/* Properties */}
+        <div style={{
+          backgroundColor: 'white',
+          padding: '24px',
+          borderRadius: '12px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #f3f4f6'
+        }}>
+          <h3 style={{
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#6B7280',
+            margin: '0 0 8px 0',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            Propiedades Activas
+          </h3>
+          <p style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#8B5CF6',
+            margin: '0 0 4px 0'
+          }}>
+            {stats.activeProperties}
+          </p>
+          <p style={{
+            fontSize: '13px',
+            color: '#6B7280',
+            margin: 0
+          }}>
+            De {stats.totalProperties} totales
+          </p>
         </div>
       </div>
 
-      {/* Budget Statistics Section */}
-      <div style={{ 
-        marginBottom: '32px',
-        backgroundColor: '#ffffff',
-        padding: '24px',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        border: '1px solid #e5e5e5'
+      {/* Recent Activity Section */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
+        gap: '24px'
       }}>
-        <h2 style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          marginBottom: '20px', 
-          color: '#111827',
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        }}>
-          📊 Estadísticas de Presupuestos
-        </h2>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-          gap: '16px' 
-        }}>
-          {budgetStats.map((stat, index) => (
-            <div key={index} style={{
-              backgroundColor: '#f8f9fa',
-              padding: '20px',
-              borderRadius: '10px',
-              border: '1px solid #e5e5e5'
-            }}>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#6b7280', 
-                marginBottom: '8px',
-                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-              }}>
-                {stat.label}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <p style={{ 
-                  fontSize: '24px', 
-                  fontWeight: '600', 
-                  color: '#111827',
-                  fontFamily: "'Inter', sans-serif"
-                }}>
-                  {stat.value}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {stat.positive ? 
-                    <TrendingUp size={14} color="#10b981" /> : 
-                    <TrendingDown size={14} color="#ef4444" />
-                  }
-                  <span style={{ 
-                    fontSize: '13px', 
-                    color: stat.positive ? '#10b981' : '#ef4444',
-                    fontWeight: '500'
-                  }}>
-                    {stat.change}
-                  </span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Content Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '32px' }}>
         {/* Recent Inspections */}
         <div style={{
           backgroundColor: 'white',
           borderRadius: '12px',
-          padding: '24px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-          border: '1px solid #f0f0f0'
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #f3f4f6',
+          overflow: 'hidden'
         }}>
-          <h2 style={{ 
-            fontSize: '18px', 
-            fontWeight: '600', 
-            marginBottom: '16px', 
-            color: '#111827',
-            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          <div style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid #f3f4f6'
           }}>
-            Inspecciones Recientes
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h2 style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#111827',
+              margin: 0
+            }}>
+              Inspecciones Recientes
+            </h2>
+          </div>
+          <div style={{ padding: '16px' }}>
             {recentInspections.map((inspection) => (
               <div key={inspection.id} style={{
-                padding: '16px',
-                backgroundColor: '#fafafa',
+                padding: '12px',
                 borderRadius: '8px',
-                border: '1px solid #f0f0f0'
+                marginBottom: '8px',
+                backgroundColor: '#f9fafb',
+                transition: 'all 0.2s'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div>
-                    <h4 style={{ 
-                      fontWeight: '500', 
-                      color: '#111827', 
-                      marginBottom: '4px',
-                      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                    }}>
-                      {inspection.property}
-                    </h4>
-                    <p style={{ fontSize: '14px', color: '#6b7280' }}>{inspection.id} • {inspection.date}</p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ 
-                      fontSize: '20px', 
-                      fontWeight: '600', 
-                      color: inspection.progress === 100 ? '#10b981' : '#3b82f6',
-                      marginBottom: '4px' 
-                    }}>
-                      {inspection.progress}%
-                    </div>
-                    <span style={{
-                      fontSize: '12px',
-                      padding: '2px 8px',
-                      borderRadius: '12px',
-                      backgroundColor: inspection.status === 'completed' ? '#d1fae5' : '#dbeafe',
-                      color: inspection.status === 'completed' ? '#065f46' : '#1e40af'
-                    }}>
-                      {inspection.status === 'completed' ? 'Completada' : 'En proceso'}
-                    </span>
-                  </div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'start',
+                  marginBottom: '8px'
+                }}>
+                  <h4 style={{
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    color: '#111827',
+                    margin: 0
+                  }}>
+                    {inspection.property}
+                  </h4>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    backgroundColor: 
+                      inspection.status === 'completed' ? '#D1FAE5' :
+                      inspection.status === 'pending' ? '#FEF3C7' : '#DBEAFE',
+                    color: 
+                      inspection.status === 'completed' ? '#065F46' :
+                      inspection.status === 'pending' ? '#92400E' : '#1E40AF'
+                  }}>
+                    {inspection.status === 'completed' ? 'Completada' :
+                     inspection.status === 'pending' ? 'Pendiente' : 'En Proceso'}
+                  </span>
                 </div>
                 <div style={{
-                  width: '100%',
-                  height: '6px',
-                  backgroundColor: '#e5e7eb',
-                  borderRadius: '3px',
-                  overflow: 'hidden'
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  fontSize: '13px',
+                  color: '#6B7280'
                 }}>
-                  <div style={{
-                    width: `${inspection.progress}%`,
-                    height: '100%',
-                    backgroundColor: inspection.progress === 100 ? '#10b981' : '#3b82f6',
-                    transition: 'width 0.3s ease'
-                  }} />
+                  <span>Inspector: {inspection.inspector}</span>
+                  <span>{new Date(inspection.date).toLocaleDateString('es-EC')}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Pending Tasks */}
+        {/* Upcoming Tasks */}
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '12px',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+          border: '1px solid #f3f4f6',
+          overflow: 'hidden'
+        }}>
           <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-            border: '1px solid #f0f0f0'
+            padding: '20px 24px',
+            borderBottom: '1px solid #f3f4f6'
           }}>
-            <h2 style={{ 
-              fontSize: '18px', 
-              fontWeight: '600', 
-              marginBottom: '16px', 
+            <h2 style={{
+              fontSize: '18px',
+              fontWeight: '600',
               color: '#111827',
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+              margin: 0
             }}>
-              Tareas Pendientes
+              Tareas Próximas
             </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {pendingTasks.map((task) => (
-                <div key={task.id} style={{
-                  padding: '12px',
-                  backgroundColor: '#fafafa',
-                  borderRadius: '8px',
-                  border: '1px solid #f0f0f0',
+          </div>
+          <div style={{ padding: '16px' }}>
+            {upcomingTasks.map((task) => (
+              <div key={task.id} style={{
+                padding: '12px',
+                borderRadius: '8px',
+                marginBottom: '8px',
+                backgroundColor: '#f9fafb'
+              }}>
+                <div style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px'
+                  justifyContent: 'space-between',
+                  alignItems: 'start',
+                  marginBottom: '8px'
                 }}>
-                  <div style={{
+                  <h4 style={{
+                    fontSize: '15px',
+                    fontWeight: '600',
+                    color: '#111827',
+                    margin: 0
+                  }}>
+                    {task.task}
+                  </h4>
+                  <span style={{
                     width: '8px',
                     height: '8px',
                     borderRadius: '50%',
-                    backgroundColor: task.priority === 'high' ? '#ef4444' : '#f59e0b',
-                    flexShrink: 0
-                  }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ 
-                      fontWeight: '500', 
-                      color: '#111827', 
-                      marginBottom: '2px',
-                      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                    }}>
-                      {task.title}
-                    </p>
-                    <p style={{ fontSize: '13px', color: '#6b7280' }}>
-                      Asignado a: {task.assignee}
-                    </p>
-                  </div>
+                    backgroundColor: 
+                      task.priority === 'high' ? '#EF4444' :
+                      task.priority === 'medium' ? '#F59E0B' : '#10B981'
+                  }}></span>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Upcoming Inspections */}
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-            border: '1px solid #f0f0f0'
-          }}>
-            <h2 style={{ 
-              fontSize: '18px', 
-              fontWeight: '600', 
-              marginBottom: '16px', 
-              color: '#111827',
-              fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-            }}>
-              Próximas Inspecciones
-            </h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {upcomingInspections.map((inspection) => (
-                <div key={inspection.id} style={{
-                  padding: '12px',
-                  backgroundColor: '#fafafa',
-                  borderRadius: '8px',
-                  border: '1px solid #f0f0f0'
+                <div style={{
+                  fontSize: '13px',
+                  color: '#6B7280',
+                  marginBottom: '4px'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                    <div>
-                      <p style={{ 
-                        fontWeight: '500', 
-                        color: '#111827', 
-                        marginBottom: '4px',
-                        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-                      }}>
-                        {inspection.property}
-                      </p>
-                      <p style={{ fontSize: '13px', color: '#6b7280' }}>
-                        Inspector: {inspection.inspector}
-                      </p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <p style={{ fontSize: '14px', fontWeight: '500', color: '#dc2626' }}>
-                        {inspection.time}
-                      </p>
-                      <p style={{ fontSize: '13px', color: '#6b7280' }}>
-                        {inspection.date}
-                      </p>
-                    </div>
-                  </div>
+                  {task.property}
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Budget Statistics Section - Moved to bottom */}
-      <div style={{ 
-        marginTop: '32px',
-        backgroundColor: '#ffffff',
-        padding: '24px',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        border: '1px solid #e5e5e5'
-      }}>
-        <h2 style={{ 
-          fontSize: '20px', 
-          fontWeight: '600', 
-          marginBottom: '20px', 
-          color: '#111827',
-          fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        }}>
-          📊 Estadísticas de Presupuestos
-        </h2>
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
-          gap: '16px' 
-        }}>
-          {budgetStats.map((stat, index) => (
-            <div key={index} style={{
-              backgroundColor: '#f8f9fa',
-              padding: '20px',
-              borderRadius: '10px',
-              border: '1px solid #e5e5e5'
-            }}>
-              <p style={{ 
-                fontSize: '14px', 
-                color: '#6b7280', 
-                marginBottom: '8px',
-                fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-              }}>
-                {stat.label}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <p style={{ 
-                  fontSize: '24px', 
-                  fontWeight: '600', 
-                  color: '#111827',
-                  fontFamily: "'Inter', sans-serif"
+                <div style={{
+                  fontSize: '12px',
+                  color: '#9CA3AF'
                 }}>
-                  {stat.value}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {stat.positive ? 
-                    <TrendingUp size={14} color="#10b981" /> : 
-                    <TrendingDown size={14} color="#ef4444" />
-                  }
-                  <span style={{ 
-                    fontSize: '13px', 
-                    color: stat.positive ? '#10b981' : '#ef4444',
-                    fontWeight: '500'
-                  }}>
-                    {stat.change}
-                  </span>
+                  Vence: {new Date(task.dueDate).toLocaleDateString('es-EC')}
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
