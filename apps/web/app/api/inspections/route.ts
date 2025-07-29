@@ -1,53 +1,47 @@
-import { NextResponse } from 'next/server'
+﻿import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import GoogleDriveService from '../../services/googleDriveService';
 
-// Datos temporales sin base de datos
-const mockInspections = [
-  {
-    id: '1',
-    propertyId: '1',
-    property: 'Casa Ejemplo',
-    date: '2024-01-15',
-    status: 'completed',
-    inspector: 'Juan Pérez'
-  },
-  {
-    id: '2', 
-    propertyId: '2',
-    property: 'Edificio Centro',
-    date: '2024-01-20',
-    status: 'pending',
-    inspector: 'María García'
-  }
-]
-
-export async function GET() {
+export async function POST(request: NextRequest) {
   try {
-    return NextResponse.json({ inspections: mockInspections })
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Error fetching inspections' },
-      { status: 500 }
-    )
-  }
-}
+    const inspectionData = await request.json();
+    const cookieStore = cookies();
+    const accessToken = cookieStore.get('google_access_token');
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json()
-    const newInspection = {
-      id: Date.now().toString(),
-      ...body,
-      createdAt: new Date().toISOString()
+    let driveResult = { success: false, message: 'No Google Drive token' };
+
+    if (accessToken) {
+      try {
+        const driveService = new GoogleDriveService(accessToken.value);
+        driveResult = await driveService.uploadInspection(inspectionData);
+        console.log('Respaldo creado:', driveResult);
+      } catch (driveError) {
+        console.error('Error en respaldo:', driveError);
+        driveResult = {
+          success: false,
+          message: 'Error al crear respaldo',
+          error: driveError
+        };
+      }
     }
-    
-    return NextResponse.json(
-      { inspection: newInspection, message: 'Created successfully' },
-      { status: 201 }
-    )
+
+    const result = {
+      ...inspectionData,
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      driveBackup: driveResult
+    };
+
+    return NextResponse.json({
+      success: true,
+      data: result,
+      driveBackup: driveResult
+    });
   } catch (error) {
+    console.error('Error general:', error);
     return NextResponse.json(
-      { error: 'Error creating inspection' },
+      { success: false, error: 'Error creating inspection' },
       { status: 500 }
-    )
+    );
   }
 }
