@@ -1,0 +1,7 @@
+@echo off
+echo Actualizando INSPECTEN...
+git add .
+git commit -m "Actualizacion"
+git push
+echo LISTO! inspect10.us se actualizara en 1-2 minutos
+pause
