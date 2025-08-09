@@ -286,7 +286,7 @@ export default function InspectionsPage() {
             }}
           >
             {/* Indicador de respaldo en Drive */}
-            {inspection.driveFileId && (
+            {false && (
               <div style={{
                 position: 'absolute',
                 top: '10px',

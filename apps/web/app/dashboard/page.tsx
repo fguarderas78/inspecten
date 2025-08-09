@@ -274,7 +274,6 @@ export default function DashboardPage() {
         top: 0,
         zIndex: 100,
         backdropFilter: 'blur(10px)',
-        backgroundColor: theme === 'dark' ? 'rgba(17, 24, 39, 0.95)' : 'rgba(255, 255, 255, 0.95)',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
       }}>
         <div style={{

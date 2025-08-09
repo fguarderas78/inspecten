@@ -2,8 +2,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react';
-import { googleConfig } from '@/lib/google-config';
-
+import { googleConfig } from '../apps/web/lib/google-config';
 interface PropertyMapProps {
   address?: string;
   onLocationSelect?: (location: { lat: number; lng: number; address: string }) => void;
