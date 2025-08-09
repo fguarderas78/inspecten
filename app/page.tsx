@@ -12,6 +12,7 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
+    // Aquí iría la lógica de autenticación normal
     router.push('/dashboard')
   }
 
@@ -19,8 +20,11 @@ export default function LoginPage() {
     onSuccess: async (response) => {
       setLoading(true)
       try {
+        // Guardar el token
         localStorage.setItem('google_access_token', response.access_token)
         console.log('✅ Login con Google exitoso')
+        
+        // Redirigir al dashboard
         router.push('/dashboard')
       } catch (error) {
         console.error('Error:', error)
@@ -50,6 +54,7 @@ export default function LoginPage() {
         width: '100%',
         maxWidth: '400px'
       }}>
+        {/* Logo */}
         <div style={{
           textAlign: 'center',
           marginBottom: '32px'
@@ -71,6 +76,7 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Formulario */}
         <form onSubmit={handleLogin}>
           <div style={{ marginBottom: '16px' }}>
             <label style={{
@@ -153,6 +159,7 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* Separador */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -177,6 +184,7 @@ export default function LoginPage() {
           }} />
         </div>
 
+        {/* Botón de Google */}
         <button
           onClick={() => googleLogin()}
           disabled={loading}
@@ -214,6 +222,7 @@ export default function LoginPage() {
           {loading ? 'Conectando...' : 'Continuar con Google'}
         </button>
 
+        {/* Pie de página */}
         <p style={{
           textAlign: 'center',
           marginTop: '24px',
