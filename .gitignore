@@ -4,3 +4,6 @@ node_modules/
 *.log 
 .vercel
 -e ".env\n.env.*\n*.env\n" 
+.env
+.env.*
+*.env
