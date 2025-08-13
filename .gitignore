@@ -3,3 +3,4 @@ node_modules/
 .env.local 
 *.log 
 .vercel
+-e ".env\n.env.*\n*.env\n" 
