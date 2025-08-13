@@ -1,11 +1,8 @@
- 
-import { GoogleOAuthProvider } from '@react-oauth/google'
+import type { Metadata } from 'next'
 
-const GOOGLE_CLIENT_ID = '276697031867-17li97nhqr5adtrp8o8e7pr7lbop6jp0.apps.googleusercontent.com'
-
-export const metadata = {
+export const metadata: Metadata = {
   title: 'INSPECTEN - Sistema de Gestión de Inspecciones',
-  description: 'Plataforma profesional para gestión de inspecciones inmobiliarias',
+  description: 'Plataforma profesional para gestión de inspecciones de propiedades',
 }
 
 export default function RootLayout({
@@ -16,17 +13,17 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <link rel="icon" href="/favicon.ico" />
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body style={{ 
         margin: 0, 
-        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        backgroundColor: '#f3f4f6',
-        minHeight: '100vh'
+        padding: 0,
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+        WebkitFontSmoothing: 'antialiased',
+        MozOsxFontSmoothing: 'grayscale'
       }}>
-        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-          {children}
-        </GoogleOAuthProvider>
+        {children}
       </body>
     </html>
   )

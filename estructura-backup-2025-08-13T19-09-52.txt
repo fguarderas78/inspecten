@@ -1,0 +1,222 @@
+├── .git/
+│   ├── hooks/
+│   ├── info/
+│   ├── logs/
+│   │   └── refs/
+│   │       ├── heads/
+│   │       └── remotes/
+│   │           └── origin/
+│   ├── objects/
+│   │   ├── 02/
+│   │   ├── 0a/
+│   │   ├── 40/
+│   │   ├── 4c/
+│   │   ├── 50/
+│   │   ├── 58/
+│   │   ├── 5a/
+│   │   ├── 5c/
+│   │   ├── 5d/
+│   │   ├── 5e/
+│   │   ├── 6c/
+│   │   ├── 72/
+│   │   ├── 77/
+│   │   ├── 7c/
+│   │   ├── 84/
+│   │   ├── 87/
+│   │   ├── 93/
+│   │   ├── 9a/
+│   │   ├── b7/
+│   │   ├── d2/
+│   │   ├── d7/
+│   │   ├── d9/
+│   │   ├── dd/
+│   │   ├── ec/
+│   │   ├── f5/
+│   │   ├── f9/
+│   │   ├── fd/
+│   │   ├── info/
+│   │   └── pack/
+│   └── refs/
+│       ├── heads/
+│       ├── remotes/
+│       │   └── origin/
+│       └── tags/
+├── app/
+│   ├── components/
+│   │   ├── google-login-button.tsx
+│   │   └── PropertyMap.tsx
+│   ├── dashboard/
+│   │   ├── assets/
+│   │   ├── checklists/
+│   │   │   └── page.tsx
+│   │   ├── dashboard-components.tsx
+│   │   ├── inspections/
+│   │   │   └── page.tsx
+│   │   ├── layout.tsx
+│   │   ├── page.tsx
+│   │   ├── presupuestos/
+│   │   │   └── page.tsx
+│   │   ├── propiedades/
+│   │   │   └── page.tsx
+│   │   ├── schedules/
+│   │   │   └── page.tsx
+│   │   ├── settings/
+│   │   │   └── page.tsx
+│   │   ├── tasks/
+│   │   │   └── page.tsx
+│   │   └── users/
+│   │       └── page.tsx
+│   ├── layout.tsx
+│   ├── login/
+│   │   └── page.tsx
+│   └── page.tsx
+├── apps/
+│   └── web/
+│       ├── app/
+│       │   ├── api/
+│       │   ├── auth/
+│       │   │   └── google/
+│       │   │       └── callback/
+│       │   │           ├── route.ts
+│       │   ├── components/
+│       │   │   ├── AuthCheck.tsx
+│       │   │   ├── components/
+│       │   │   │   ├── auth/
+│       │   │   │   │   └── LoginButton.tsx
+│       │   │   │   └── AuthCheck.tsx
+│       │   │   └── GoogleAuthButton.tsx
+│       │   ├── dashboard/
+│       │   │   ├── checklists/
+│       │   │   │   └── page.tsx
+│       │   │   ├── dashboard-components.tsx
+│       │   │   ├── inspections/
+│       │   │   │   └── page.tsx
+│       │   │   ├── layout.tsx
+│       │   │   ├── page.tsx
+│       │   │   ├── presupuestos/
+│       │   │   │   └── page.tsx
+│       │   │   ├── propiedades/
+│       │   │   │   ├── page.tsx
+│       │   │   │   └── PropertyMap.tsx
+│       │   │   ├── schedules/
+│       │   │   │   └── page.tsx
+│       │   │   ├── settings/
+│       │   │   │   └── page.tsx
+│       │   │   ├── tasks/
+│       │   │   │   └── page.tsx
+│       │   │   └── users/
+│       │   │       └── page.tsx
+│       │   ├── layout.tsx
+│       │   ├── page.backup.tsx
+│       │   ├── page.tsx
+│       │   └── services/
+│       │       ├── googledriveOauth.ts
+│       │       └── googleDriveService.ts
+│       ├── components/
+│       │   ├── AuthCheck.tsx
+│       │   └── GoogleAuthButton.tsx
+│       ├── lib/
+│       │   ├── prisma.ts
+│       │   └── supabase.ts
+│       ├── prisma/
+│       ├── public/
+│       │   ├── images/
+│       └── tsconfig.json
+├── components/
+│   └── property-map.tsx
+├── inspecten/
+│   ├── .git/
+│   │   ├── hooks/
+│   │   ├── info/
+│   │   ├── logs/
+│   │   │   └── refs/
+│   │   │       ├── heads/
+│   │   │       └── remotes/
+│   │   │           └── origin/
+│   │   ├── objects/
+│   │   │   ├── info/
+│   │   │   └── pack/
+│   │   └── refs/
+│   │       ├── heads/
+│   │       ├── remotes/
+│   │       │   └── origin/
+│   │       └── tags/
+│   ├── app/
+│   │   ├── components/
+│   │   │   ├── google-login-button.tsx
+│   │   │   └── PropertyMap.tsx
+│   │   ├── layout.tsx
+│   │   ├── page.backup2.tsx
+│   │   └── page.tsx
+│   ├── apps/
+│   │   └── web/
+│   │       ├── app/
+│   │       │   ├── auth/
+│   │       │   │   └── google/
+│   │       │   │       └── callback/
+│   │       │   │           └── route.ts
+│   │       │   ├── components/
+│   │       │   │   ├── AuthCheck.tsx
+│   │       │   │   ├── components/
+│   │       │   │   │   ├── auth/
+│   │       │   │   │   │   └── LoginButton.tsx
+│   │       │   │   │   └── AuthCheck.tsx
+│   │       │   │   └── GoogleAuthButton.tsx
+│   │       │   ├── dashboard/
+│   │       │   │   ├── checklists/
+│   │       │   │   │   └── page.tsx
+│   │       │   │   ├── dashboard-components.tsx
+│   │       │   │   ├── inspections/
+│   │       │   │   │   └── page.tsx
+│   │       │   │   ├── layout.tsx
+│   │       │   │   ├── page.tsx
+│   │       │   │   ├── presupuestos/
+│   │       │   │   │   └── page.tsx
+│   │       │   │   ├── propiedades/
+│   │       │   │   │   ├── page.tsx
+│   │       │   │   │   └── PropertyMap.tsx
+│   │       │   │   ├── schedules/
+│   │       │   │   │   └── page.tsx
+│   │       │   │   ├── settings/
+│   │       │   │   │   └── page.tsx
+│   │       │   │   ├── tasks/
+│   │       │   │   │   └── page.tsx
+│   │       │   │   └── users/
+│   │       │   │       └── page.tsx
+│   │       │   ├── layout.tsx
+│   │       │   ├── page.backup.tsx
+│   │       │   ├── page.tsx
+│   │       │   └── services/
+│   │       │       ├── googledriveOauth.ts
+│   │       │       └── googleDriveService.ts
+│   │       ├── components/
+│   │       │   ├── AuthCheck.tsx
+│   │       │   └── GoogleAuthButton.tsx
+│   │       ├── lib/
+│   │       │   ├── prisma.ts
+│   │       │   └── supabase.ts
+│   │       ├── prisma/
+│   │       ├── public/
+│   │       │   ├── images/
+│   │       └── tsconfig.json
+│   ├── components/
+│   │   └── property-map.tsx
+│   ├── lib/
+│   │   └── services/
+│   ├── next-env.d.ts
+│   ├── package (MINIPC-9YGAQ's conflicted copy 2025-08-01).json
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── public/
+│   │   └── images/
+│   ├── scripts/
+│   └── tsconfig.json
+├── lib/
+│   └── services/
+├── next-env.d.ts
+├── package-lock.json
+├── package.json
+├── public/
+│   └── images/
+├── scripts/
+├── tsconfig.json
