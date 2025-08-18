@@ -1,101 +1,79 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-
-declare global {
-  interface Window {
-    google: any;
-  }
-}
 
 export default function LoginPage() {
   const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
-  useEffect(() => {
-    // Cargar el script de Google
-    const script = document.createElement('script')
-    script.src = 'https://accounts.google.com/gsi/client'
-    script.async = true
-    script.defer = true
-    document.body.appendChild(script)
-
-    script.onload = () => {
-      // Inicializar Google Sign In
-      window.google.accounts.id.initialize({
-        client_id: '276697031867-17li97nhqr5adtrp8o8e7pr7lbop6jp0.apps.googleusercontent.com',
-        callback: handleGoogleLogin,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-        context: 'signin',
-        ux_mode: 'popup',
-      })
-
-      // Renderizar el botón
-      window.google.accounts.id.renderButton(
-        document.getElementById('google-signin-button'),
-        {
-          theme: 'outline',
-          size: 'large',
-          width: '100%',
-          text: 'signin_with',
-          shape: 'rectangular',
-          logo_alignment: 'left',
-          locale: 'es'
-        }
-      )
-    }
-
-    return () => {
-      const scriptTag = document.querySelector('script[src="https://accounts.google.com/gsi/client"]')
-      if (scriptTag) {
-        document.body.removeChild(scriptTag)
-      }
-    }
-  }, [])
-
-  const handleGoogleLogin = async (response: any) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
     setError('')
     setIsLoading(true)
 
-    try {
-      // Decodificar el token JWT de Google
-      const payload = JSON.parse(atob(response.credential.split('.')[1]))
-      
-      // Verificar que el email termine en @inspecten.com o sea el tuyo para pruebas
-      const allowedEmails = ['fguarderas@cogucosa.com']; // Email de prueba
-      const isAllowedEmail = allowedEmails.includes(payload.email);
-      
-      if (!payload.email.endsWith('@inspecten.com') && !isAllowedEmail) {
-        setError('Acceso restringido a cuentas corporativas @inspecten.com')
-        setIsLoading(false)
-        return
-      }
-
-      // Verificar que el email esté verificado
-      if (!payload.email_verified) {
-        setError('Por favor verifica tu cuenta de Google primero')
-        setIsLoading(false)
-        return
-      }
-
-      // Guardar información del usuario
-      sessionStorage.setItem('userEmail', payload.email)
-      sessionStorage.setItem('userName', payload.name)
-      sessionStorage.setItem('userPicture', payload.picture)
-      sessionStorage.setItem('isAuthenticated', 'true')
-
-      // Redirigir al dashboard
-      router.push('/dashboard')
-
-    } catch (error) {
-      console.error('Error en login:', error)
-      setError('Error al iniciar sesión. Por favor intente nuevamente.')
+    // Validaciones básicas
+    if (!email || !password) {
+      setError('Por favor complete todos los campos')
       setIsLoading(false)
+      return
     }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setError('Por favor ingrese un correo válido')
+      setIsLoading(false)
+      return
+    }
+
+    // Credenciales temporales para desarrollo
+    // TODO: Reemplazar con autenticación real del backend
+    const validCredentials = [
+      { email: 'admin@inspecten.com', password: 'admin123', role: 'Admin' },
+      { email: 'francisco@inspecten.com', password: 'inspecten123', role: 'Admin' },
+      { email: 'inspector@inspecten.com', password: 'inspector123', role: 'Inspector' }
+    ]
+
+    // Simular delay de red
+    setTimeout(() => {
+      const user = validCredentials.find(
+        cred => cred.email.toLowerCase() === email.toLowerCase() && cred.password === password
+      )
+
+      if (user) {
+        // Guardar sesión
+        sessionStorage.setItem('userEmail', user.email)
+        sessionStorage.setItem('userRole', user.role)
+        sessionStorage.setItem('isAuthenticated', 'true')
+        
+        // Si "recordarme" está marcado, guardar en localStorage
+        if (rememberMe) {
+          localStorage.setItem('savedEmail', user.email)
+        } else {
+          localStorage.removeItem('savedEmail')
+        }
+
+        router.push('/dashboard')
+      } else {
+        setError('Credenciales incorrectas. Por favor, intente nuevamente.')
+        setIsLoading(false)
+      }
+    }, 1000)
   }
+
+  // Cargar email guardado si existe (pero no autocompletar)
+  useState(() => {
+    const savedEmail = localStorage.getItem('savedEmail')
+    if (savedEmail && rememberMe) {
+      setEmail(savedEmail)
+    }
+  }, [])
 
   return (
     <div style={{
@@ -103,316 +81,272 @@ export default function LoginPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%)',
+      backgroundColor: '#f3f4f6',
       padding: '20px'
     }}>
-      {/* Contenedor principal con sombra profesional */}
       <div style={{
         backgroundColor: 'white',
-        borderRadius: '16px',
-        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)',
+        padding: '40px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
         width: '100%',
-        maxWidth: '440px',
-        overflow: 'hidden'
+        maxWidth: '420px'
       }}>
-        {/* Header con fondo */}
-        <div style={{
-          background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)',
-          padding: '40px 40px 32px',
-          textAlign: 'center',
-          position: 'relative'
-        }}>
-          {/* Logo */}
-          <div style={{
-            marginBottom: '20px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center'
-          }}>
-            <div style={{
-              width: '80px',
-              height: '80px',
-              backgroundColor: 'white',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-            }}>
-              {/* Aquí va el logo de INSPECTEN */}
-              <img 
-                src="/Inspecten-01.png" 
-                alt="INSPECTEN" 
-                style={{
-                  width: '60px',
-                  height: '60px',
-                  objectFit: 'contain'
-                }}
-                onError={(e) => {
-                  // Si no se encuentra el logo, mostrar texto
-                  e.currentTarget.style.display = 'none'
-                  const textLogo = document.createElement('div')
-                  textLogo.innerHTML = '<strong style="color: #dc2626; font-size: 24px;">IN</strong>'
-                  e.currentTarget.parentElement?.appendChild(textLogo)
-                }}
-              />
-            </div>
-          </div>
-
+        {/* Logo y Título */}
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <h1 style={{
-            fontSize: '28px',
-            fontWeight: '300',
-            color: 'white',
-            margin: '0 0 8px 0',
-            letterSpacing: '2px'
+            fontSize: '32px',
+            fontWeight: 'bold',
+            color: '#dc2626',
+            marginBottom: '8px'
           }}>
             INSPECTEN
           </h1>
           <p style={{
-            fontSize: '14px',
-            color: 'rgba(255, 255, 255, 0.9)',
-            margin: 0,
-            fontWeight: '400'
+            color: '#6b7280',
+            fontSize: '14px'
           }}>
             Sistema de Gestión de Inspecciones
           </p>
         </div>
 
-        {/* Contenido del formulario */}
+        {/* Mensaje de credenciales de prueba (solo desarrollo) */}
         <div style={{
-          padding: '40px'
+          backgroundColor: '#dbeafe',
+          border: '1px solid #3b82f6',
+          borderRadius: '6px',
+          padding: '12px',
+          marginBottom: '20px',
+          fontSize: '13px'
         }}>
-          {/* Mensaje de bienvenida */}
-          <div style={{
-            textAlign: 'center',
-            marginBottom: '32px'
-          }}>
-            <h2 style={{
-              fontSize: '22px',
-              fontWeight: '600',
-              color: '#1f2937',
-              marginBottom: '12px'
+          <strong>Credenciales de prueba:</strong><br/>
+          • admin@inspecten.com / admin123<br/>
+          • francisco@inspecten.com / inspecten123<br/>
+          • inspector@inspecten.com / inspector123
+        </div>
+
+        {/* Formulario */}
+        <form onSubmit={handleLogin} autoComplete="off">
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '6px',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: '#374151'
             }}>
-              Portal Corporativo
-            </h2>
-            <p style={{
-              fontSize: '15px',
-              color: '#6b7280',
-              lineHeight: '1.6'
-            }}>
-              Acceso exclusivo para empleados con cuenta<br />
-              <span style={{
-                color: '#dc2626',
-                fontWeight: '600'
-              }}>@inspecten.com</span>
-            </p>
+              Correo Electrónico
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="correo@ejemplo.com"
+              required
+              autoComplete="off"
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                transition: 'border-color 0.2s',
+                ...(error && { borderColor: '#ef4444' })
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#dc2626'
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = error ? '#ef4444' : '#d1d5db'
+              }}
+            />
           </div>
 
-          {/* Botón de Google Sign In */}
-          <div 
-            id="google-signin-button" 
-            style={{
-              marginBottom: '24px',
+          <div style={{ marginBottom: '20px' }}>
+            <label style={{
+              display: 'block',
+              marginBottom: '6px',
+              fontSize: '14px',
+              fontWeight: '500',
+              color: '#374151'
+            }}>
+              Contraseña
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  paddingRight: '40px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  outline: 'none',
+                  transition: 'border-color 0.2s',
+                  ...(error && { borderColor: '#ef4444' })
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#dc2626'
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = error ? '#ef4444' : '#d1d5db'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#6b7280',
+                  fontSize: '20px',
+                  padding: '4px'
+                }}
+              >
+                {showPassword ? '👁️' : '👁️‍🗨️'}
+              </button>
+            </div>
+          </div>
+
+          {/* Recordarme */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px'
+          }}>
+            <label style={{
               display: 'flex',
-              justifyContent: 'center',
-              filter: isLoading ? 'opacity(0.6)' : 'none',
-              pointerEvents: isLoading ? 'none' : 'auto'
-            }}
-          >
-            {/* Google renderizará el botón aquí */}
+              alignItems: 'center',
+              cursor: 'pointer',
+              fontSize: '14px',
+              color: '#374151'
+            }}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                style={{
+                  marginRight: '8px',
+                  cursor: 'pointer'
+                }}
+              />
+              Recordarme
+            </label>
+            <a
+              href="#"
+              style={{
+                fontSize: '14px',
+                color: '#dc2626',
+                textDecoration: 'none'
+              }}
+              onClick={(e) => {
+                e.preventDefault()
+                alert('Función de recuperación de contraseña no implementada')
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </a>
           </div>
 
           {/* Mensaje de error */}
           {error && (
             <div style={{
               backgroundColor: '#fee2e2',
-              border: '1px solid #fecaca',
-              borderRadius: '8px',
-              padding: '14px 16px',
+              border: '1px solid #f87171',
+              borderRadius: '6px',
+              padding: '12px',
               marginBottom: '20px',
               fontSize: '14px',
-              color: '#991b1b',
-              textAlign: 'center',
-              animation: 'slideIn 0.3s ease-out',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
+              color: '#991b1b'
             }}>
-              <span style={{ fontSize: '16px' }}>⚠️</span>
               {error}
             </div>
           )}
 
-          {/* Indicador de carga */}
-          {isLoading && (
-            <div style={{
-              textAlign: 'center',
-              marginBottom: '20px',
-              color: '#6b7280',
-              fontSize: '14px',
+          {/* Botón de login */}
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '12px',
+              backgroundColor: isLoading ? '#9ca3af' : '#dc2626',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              transition: 'background-color 0.2s',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px'
-            }}>
-              <span style={{
-                display: 'inline-block',
-                width: '16px',
-                height: '16px',
-                border: '2px solid #dc2626',
-                borderTopColor: 'transparent',
-                borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite'
-              }}></span>
-              Verificando credenciales...
-            </div>
-          )}
-
-          {/* Línea divisora */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            margin: '32px 0 24px',
-            gap: '16px'
-          }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }}></div>
-            <span style={{ fontSize: '13px', color: '#9ca3af', fontWeight: '500' }}>
-              SEGURIDAD
-            </span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: '#e5e7eb' }}></div>
-          </div>
-
-          {/* Información de seguridad */}
-          <div style={{
-            backgroundColor: '#f9fafb',
-            borderRadius: '8px',
-            padding: '16px',
-            marginBottom: '20px'
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '12px'
-            }}>
-              <span style={{ fontSize: '20px', marginTop: '2px' }}>🔒</span>
-              <div>
-                <p style={{
-                  fontSize: '13px',
-                  color: '#4b5563',
-                  margin: '0 0 4px 0',
-                  fontWeight: '600'
-                }}>
-                  Conexión segura con Google Workspace
-                </p>
-                <p style={{
-                  fontSize: '12px',
-                  color: '#6b7280',
-                  margin: 0,
-                  lineHeight: '1.5'
-                }}>
-                  Autenticación de dos factores disponible.<br />
-                  Todos los accesos son monitoreados y registrados.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Enlaces de ayuda */}
-          <div style={{
-            textAlign: 'center',
-            paddingTop: '12px'
-          }}>
-            <p style={{
-              fontSize: '13px',
-              color: '#9ca3af',
-              marginBottom: '8px'
-            }}>
-              ¿Necesitas ayuda?
-            </p>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              gap: '24px',
-              fontSize: '14px'
-            }}>
-              <a
-                href="mailto:soporte@inspecten.com"
-                style={{
-                  color: '#dc2626',
-                  textDecoration: 'none',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = 'underline'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = 'none'
-                }}
-              >
-                📧 Soporte
-              </a>
-              <a
-                href="https://docs.inspecten.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: '#dc2626',
-                  textDecoration: 'none',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.textDecoration = 'underline'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.textDecoration = 'none'
-                }}
-              >
-                📚 Manual
-              </a>
-            </div>
-          </div>
-        </div>
+            }}
+            onMouseEnter={(e) => {
+              if (!isLoading) {
+                e.currentTarget.style.backgroundColor = '#b91c1c'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isLoading) {
+                e.currentTarget.style.backgroundColor = '#dc2626'
+              }
+            }}
+          >
+            {isLoading ? (
+              <>
+                <span style={{
+                  display: 'inline-block',
+                  width: '16px',
+                  height: '16px',
+                  border: '2px solid white',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></span>
+                Ingresando...
+              </>
+            ) : (
+              'Ingresar'
+            )}
+          </button>
+        </form>
 
         {/* Footer */}
         <div style={{
-          backgroundColor: '#f9fafb',
-          padding: '16px',
+          marginTop: '32px',
+          paddingTop: '20px',
+          borderTop: '1px solid #e5e7eb',
           textAlign: 'center',
-          borderTop: '1px solid #e5e7eb'
+          fontSize: '12px',
+          color: '#9ca3af'
         }}>
-          <p style={{
-            fontSize: '12px',
-            color: '#9ca3af',
-            margin: 0
-          }}>
-            © 2024 INSPECTEN. Todos los derechos reservados.
-          </p>
+          © 2024 INSPECTEN. Todos los derechos reservados.
         </div>
       </div>
 
-      {/* Estilos para animaciones */}
+      {/* Estilos para animación */}
       <style jsx>{`
         @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
           to {
             transform: rotate(360deg);
-          }
-        }
-        
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
           }
         }
       `}</style>

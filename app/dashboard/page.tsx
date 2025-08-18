@@ -1,946 +1,973 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function DashboardPage() {
-  const router = useRouter()
-  const [period, setPeriod] = useState('month')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showNewInspection, setShowNewInspection] = useState(false)
-  const [isSearchFocused, setIsSearchFocused] = useState(false)
-
-  // Función para formatear fechas de manera consistente
-  const formatDate = (date: string | Date): string => {
-    if (!date) return ''
-    const dateObj = typeof date === 'string' ? new Date(date) : date
-    if (isNaN(dateObj.getTime())) return ''
-    
-    const day = dateObj.getDate().toString().padStart(2, '0')
-    const month = (dateObj.getMonth() + 1).toString().padStart(2, '0')
-    const year = dateObj.getFullYear()
-    
-    return `${day}/${month}/${year}`
+interface Property {
+  id: number
+  name: string
+  address: string
+  owner: string
+  type: string
+  status: 'active' | 'inactive'
+  lastInspection?: {
+    date: string
+    inspector: string
+    status: 'completed' | 'pending'
   }
+  pendingInspections: number
+  completedInspections: number
+  images?: string[]
+}
 
-  // Estadísticas dinámicas según el período
-  const [stats, setStats] = useState({
-    total: 67,
-    completed: 52,
-    pending: 15,
-    tasks: 34
-  })
-
-  // Actualizar estadísticas cuando cambie el período
-  useEffect(() => {
-    const statsData = {
-      day: { total: 3, completed: 2, pending: 1, tasks: 4 },
-      week: { total: 15, completed: 12, pending: 3, tasks: 8 },
-      month: { total: 67, completed: 52, pending: 15, tasks: 34 },
-      year: { total: 845, completed: 712, pending: 133, tasks: 423 }
-    }
-    setStats(statsData[period as keyof typeof statsData])
-  }, [period])
-
-  // Atajo de teclado para búsqueda (tecla F)
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        if (document.activeElement?.tagName !== 'INPUT' && 
-            document.activeElement?.tagName !== 'TEXTAREA') {
-          e.preventDefault()
-          document.getElementById('search-input')?.focus()
-        }
-      }
-    }
-    
-    window.addEventListener('keypress', handleKeyPress)
-    return () => window.removeEventListener('keypress', handleKeyPress)
-  }, [])
-
-  // Cálculo del porcentaje de completado
-  const completionPercentage = Math.round((stats.completed / stats.total) * 100) || 0
+export default function PropertiesPage() {
+  const router = useRouter()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterType, setFilterType] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [showNewPropertyModal, setShowNewPropertyModal] = useState(false)
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
+  const [showPropertyDetails, setShowPropertyDetails] = useState(false)
+  const [selectedImages, setSelectedImages] = useState<File[]>([])
+  const [imagePreview, setImagePreview] = useState<string[]>([])
+  const [activeActionMenu, setActiveActionMenu] = useState<number | null>(null)
 
   // Datos de ejemplo
-  const recentInspections = [
-    { 
-      id: 1, 
-      property: 'Torre Alfa - Piso 12', 
-      client: 'Juan Pérez', 
-      date: '2024-01-19', 
-      inspector: 'Carlos Mendez',
-      status: 'completed' 
+  const [properties] = useState<Property[]>([
+    {
+      id: 1,
+      name: 'Casa Los Robles',
+      address: 'Av. Principal 123, Quito',
+      owner: 'Juan Pérez',
+      type: 'Residencial',
+      status: 'active',
+      lastInspection: {
+        date: '2024-01-15',
+        inspector: 'Carlos López',
+        status: 'completed'
+      },
+      pendingInspections: 0,
+      completedInspections: 5,
+      images: ['/img1.jpg']
     },
-    { 
-      id: 2, 
-      property: 'Casa Los Ceibos', 
-      client: 'María García', 
-      date: '2024-01-18', 
-      inspector: 'Ana López',
-      status: 'in-progress' 
+    {
+      id: 2,
+      name: 'Edificio Central',
+      address: 'Calle 45 #789, Guayaquil',
+      owner: 'María García',
+      type: 'Comercial',
+      status: 'active',
+      lastInspection: {
+        date: '2024-01-20',
+        inspector: 'Ana Martínez',
+        status: 'pending'
+      },
+      pendingInspections: 1,
+      completedInspections: 3,
+      images: ['/img2.jpg', '/img3.jpg']
     },
-    { 
-      id: 3, 
-      property: 'Oficina Centro', 
-      client: 'Roberto Silva', 
-      date: '2024-01-17', 
-      inspector: 'Pedro Ruiz',
-      status: 'completed' 
-    },
-    { 
-      id: 4, 
-      property: 'Local Comercial Mall', 
-      client: 'Carmen Díaz', 
-      date: '2024-01-16', 
-      inspector: 'Carlos Mendez',
-      status: 'completed' 
-    },
-    { 
-      id: 5, 
-      property: 'Bodega Industrial Norte', 
-      client: 'Luis Martínez', 
-      date: '2024-01-15', 
-      inspector: 'Ana López',
-      status: 'in-progress' 
+    {
+      id: 3,
+      name: 'Local Plaza Norte',
+      address: 'Plaza Norte Local 12',
+      owner: 'Roberto Silva',
+      type: 'Comercial',
+      status: 'active',
+      pendingInspections: 2,
+      completedInspections: 8
     }
-  ]
+  ])
 
-  const pendingTasks = [
-    { 
-      id: 1, 
-      task: 'Revisar sistema eléctrico', 
-      property: 'Torre Alfa', 
-      priority: 'high',
-      dueDate: '2024-01-20' 
-    },
-    { 
-      id: 2, 
-      task: 'Inspección de fontanería', 
-      property: 'Casa Los Ceibos', 
-      priority: 'medium',
-      dueDate: '2024-01-21' 
-    },
-    { 
-      id: 3, 
-      task: 'Verificar aire acondicionado', 
-      property: 'Oficina Centro', 
-      priority: 'low',
-      dueDate: '2024-01-22' 
-    },
-    { 
-      id: 4, 
-      task: 'Evaluar estructura', 
-      property: 'Local Mall', 
-      priority: 'high',
-      dueDate: '2024-01-23' 
-    },
-    { 
-      id: 5, 
-      task: 'Revisar sistema contra incendios', 
-      property: 'Bodega Industrial', 
-      priority: 'medium',
-      dueDate: '2024-01-24' 
-    }
-  ]
-
-  const upcomingInspections = [
-    { 
-      id: 1, 
-      property: 'Departamento Vista Mar', 
-      client: 'Ana Rodríguez', 
-      date: '2024-01-22',
-      time: '09:00',
-      inspector: 'Carlos Mendez' 
-    },
-    { 
-      id: 2, 
-      property: 'Casa Samborondón', 
-      client: 'Pedro López', 
-      date: '2024-01-23',
-      time: '14:00',
-      inspector: 'Ana López' 
-    },
-    { 
-      id: 3, 
-      property: 'Oficina Edificio Trade', 
-      client: 'Sofía Vera', 
-      date: '2024-01-24',
-      time: '10:00',
-      inspector: 'Pedro Ruiz' 
-    },
-    { 
-      id: 4, 
-      property: 'Local Plaza Lagos', 
-      client: 'Miguel Ángel Torres', 
-      date: '2024-01-25',
-      time: '11:00',
-      inspector: 'Carlos Mendez' 
-    },
-    { 
-      id: 5, 
-      property: 'Penthouse Bellini', 
-      client: 'Patricia Mendoza', 
-      date: '2024-01-26',
-      time: '16:00',
-      inspector: 'Ana López' 
-    }
-  ]
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return '#dc2626'
-      case 'medium': return '#f59e0b'
-      case 'low': return '#10b981'
-      default: return '#6b7280'
-    }
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    setSelectedImages(prev => [...prev, ...files])
+    
+    // Preview
+    files.forEach(file => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setImagePreview(prev => [...prev, reader.result as string])
+      }
+      reader.readAsDataURL(file)
+    })
   }
 
-  const getPriorityText = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'Alta'
-      case 'medium': return 'Media'
-      case 'low': return 'Baja'
-      default: return priority
-    }
+  const removeImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index))
+    setImagePreview(prev => prev.filter((_, i) => i !== index))
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed': return '#10b981'
-      case 'in-progress': return '#f59e0b'
-      case 'pending': return '#6b7280'
-      default: return '#6b7280'
-    }
+  const viewPropertyDetails = (property: Property) => {
+    setSelectedProperty(property)
+    setShowPropertyDetails(true)
+    setActiveActionMenu(null)
   }
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'completed': return 'Completada'
-      case 'in-progress': return 'En proceso'
-      case 'pending': return 'Pendiente'
-      default: return status
-    }
-  }
-
-  // Manejar clic en tarjetas de estadísticas
-  const handleStatCardClick = (type: string) => {
-    switch (type) {
-      case 'total':
-        router.push('/dashboard/inspections')
-        break
-      case 'completed':
-        router.push('/dashboard/inspections?status=completed')
-        break
-      case 'pending':
-        router.push('/dashboard/inspections?status=pending')
-        break
-      case 'tasks':
-        router.push('/dashboard/tasks')
-        break
-    }
-  }
+  // Filtrado
+  const filteredProperties = properties.filter(property => {
+    const matchesSearch = property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         property.owner.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesType = filterType === 'all' || property.type === filterType
+    const matchesStatus = filterStatus === 'all' || property.status === filterStatus
+    
+    return matchesSearch && matchesType && matchesStatus
+  })
 
   return (
     <div>
-      {/* Header - SIN Checklist Library, Video Library y Support */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'flex-start',
-        marginBottom: '24px'
+      {/* Header */}
+      <div style={{
+        marginBottom: '24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
       }}>
         <div>
-          <h1 style={{ 
-            fontSize: '28px', 
-            fontWeight: 'bold', 
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: 'bold',
             color: '#111827',
-            marginBottom: '4px'
+            marginBottom: '8px'
           }}>
-            Página Principal
+            Propiedades
           </h1>
-          <p style={{ color: '#6b7280', fontSize: '14px' }}>
-            Bienvenido de vuelta, Francisco
+          <p style={{ color: '#6b7280' }}>
+            Gestiona todas las propiedades registradas
           </p>
         </div>
-        
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <div style={{
-            position: 'relative'
-          }}>
-            <input
-              id="search-input"
-              type="text"
-              placeholder="Buscar... (presiona F)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-              style={{
-                padding: '8px 16px 8px 36px',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                fontSize: '14px',
-                width: '250px',
-                outline: 'none',
-                transition: 'all 0.2s'
-              }}
-            />
-            <svg 
-              style={{
-                position: 'absolute',
-                left: '10px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '18px',
-                height: '18px',
-                color: '#9ca3af'
-              }}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            
-            {/* Indicador de atajo de teclado */}
-            {!isSearchFocused && !searchQuery && (
-              <span style={{
-                position: 'absolute',
-                right: '10px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                backgroundColor: '#f3f4f6',
-                color: '#6b7280',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: '11px',
-                fontWeight: '500',
-                border: '1px solid #e5e7eb'
-              }}>
-                F
-              </span>
-            )}
-          </div>
-          
-          <button
-            onClick={() => {
-              router.push('/dashboard/inspections')
-            }}
+        <button
+          onClick={() => setShowNewPropertyModal(true)}
+          style={{
+            padding: '10px 20px',
+            backgroundColor: '#dc2626',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            fontSize: '14px',
+            fontWeight: '500',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <span>+</span> Nueva Propiedad
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: '20px',
+        borderRadius: '12px',
+        marginBottom: '24px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 200px 200px',
+          gap: '16px',
+          alignItems: 'center'
+        }}>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, dirección o propietario..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             style={{
-              padding: '8px 16px',
-              backgroundColor: '#dc2626',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'background-color 0.2s'
+              padding: '10px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              fontSize: '14px'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
+          />
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            style={{
+              padding: '10px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}
           >
-            <span style={{ fontSize: '16px' }}>+</span>
-            Nueva Inspección
-          </button>
+            <option value="all">Todos los tipos</option>
+            <option value="Residencial">Residencial</option>
+            <option value="Comercial">Comercial</option>
+            <option value="Industrial">Industrial</option>
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{
+              padding: '10px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '8px',
+              fontSize: '14px'
+            }}
+          >
+            <option value="all">Todos los estados</option>
+            <option value="active">Activo</option>
+            <option value="inactive">Inactivo</option>
+          </select>
         </div>
       </div>
 
-      {/* Selector de período */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '8px', 
-        marginBottom: '20px',
-        borderBottom: '1px solid #e5e7eb',
-        paddingBottom: '8px'
+      {/* Lista de Propiedades */}
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+        overflow: 'hidden'
       }}>
-        {[
-          { value: 'day', label: 'Día' },
-          { value: 'week', label: 'Semana' },
-          { value: 'month', label: 'Mes' },
-          { value: 'year', label: 'Año' }
-        ].map((option) => (
-          <button
-            key={option.value}
-            onClick={() => setPeriod(option.value)}
+        {/* Header de la tabla */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 150px 150px 200px 100px',
+          padding: '16px 24px',
+          backgroundColor: '#f9fafb',
+          borderBottom: '1px solid #e5e7eb',
+          fontSize: '12px',
+          fontWeight: '600',
+          color: '#6b7280',
+          textTransform: 'uppercase'
+        }}>
+          <div>Propiedad</div>
+          <div>Propietario</div>
+          <div>Tipo</div>
+          <div>Estado</div>
+          <div>Última Inspección</div>
+          <div style={{ textAlign: 'center' }}>Acciones</div>
+        </div>
+
+        {/* Filas */}
+        {filteredProperties.map((property) => (
+          <div
+            key={property.id}
             style={{
-              padding: '4px 12px',
-              backgroundColor: period === option.value ? '#dc2626' : 'transparent',
-              color: period === option.value ? 'white' : '#6b7280',
-              border: period === option.value ? 'none' : '1px solid #e5e7eb',
-              borderRadius: '4px',
-              fontSize: '13px',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 150px 150px 200px 100px',
+              padding: '20px 24px',
+              borderBottom: '1px solid #e5e7eb',
+              alignItems: 'center',
+              transition: 'background-color 0.2s',
+              position: 'relative'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f9fafb'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'white'
             }}
           >
-            {option.label}
-          </button>
+            <div>
+              <div style={{
+                fontWeight: '600',
+                color: '#111827',
+                marginBottom: '4px'
+              }}>
+                {property.name}
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: '#6b7280'
+              }}>
+                {property.address}
+              </div>
+            </div>
+
+            <div style={{
+              fontSize: '14px',
+              color: '#374151'
+            }}>
+              {property.owner}
+            </div>
+
+            <div>
+              <span style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                fontSize: '12px',
+                fontWeight: '500',
+                backgroundColor: property.type === 'Residencial' ? '#dbeafe' : '#fef3c7',
+                color: property.type === 'Residencial' ? '#1e40af' : '#92400e'
+              }}>
+                {property.type}
+              </span>
+            </div>
+
+            <div>
+              <span style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                fontSize: '12px',
+                fontWeight: '500',
+                backgroundColor: property.status === 'active' ? '#d1fae5' : '#fee2e2',
+                color: property.status === 'active' ? '#065f46' : '#991b1b'
+              }}>
+                {property.status === 'active' ? 'Activo' : 'Inactivo'}
+              </span>
+            </div>
+
+            <div style={{ fontSize: '13px' }}>
+              {property.lastInspection ? (
+                <div>
+                  <div style={{ color: '#374151', marginBottom: '2px' }}>
+                    {property.lastInspection.date}
+                  </div>
+                  <div style={{ color: '#6b7280' }}>
+                    {property.lastInspection.inspector}
+                  </div>
+                  <div style={{ 
+                    color: property.lastInspection.status === 'completed' ? '#10b981' : '#f59e0b',
+                    fontSize: '12px',
+                    marginTop: '2px'
+                  }}>
+                    {property.lastInspection.status === 'completed' ? '✓ Completada' : '⏳ Pendiente'}
+                  </div>
+                </div>
+              ) : (
+                <span style={{ color: '#9ca3af' }}>Sin inspecciones</span>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', position: 'relative' }}>
+              <button
+                onClick={() => setActiveActionMenu(activeActionMenu === property.id ? null : property.id)}
+                style={{
+                  padding: '8px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto'
+                }}
+              >
+                ⋮
+              </button>
+
+              {/* Menú de acciones */}
+              {activeActionMenu === property.id && (
+                <div style={{
+                  position: 'absolute',
+                  right: '0',
+                  top: '40px',
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                  zIndex: 10,
+                  minWidth: '180px'
+                }}>
+                  <button
+                    onClick={() => viewPropertyDetails(property)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    👁️ Ver detalles
+                  </button>
+                  <button
+                    onClick={() => router.push(`/dashboard/inspections/new?property=${property.id}`)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    📋 Nueva inspección
+                  </button>
+                  <button
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    style={{
+                      width: '100%',
+                      padding: '10px 16px',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      color: '#dc2626',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      borderTop: '1px solid #e5e7eb'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* Tarjetas de estadísticas - MÁS PEQUEÑAS */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '16px',
-        marginBottom: '24px'
-      }}>
-        {/* Total de Inspecciones */}
-        <div 
-          onClick={() => handleStatCardClick('total')}
-          style={{
-            backgroundColor: 'white',
-            padding: '16px',
-            borderRadius: '8px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}
+      {/* Modal Nueva Propiedad */}
+      {showNewPropertyModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}
+        onClick={() => setShowNewPropertyModal(false)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>
-                Total Inspecciones
-              </p>
-              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#111827' }}>
-                {stats.total}
-              </p>
-            </div>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#fee2e2',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '32px',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '600px',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: 'bold',
+              marginBottom: '24px',
+              color: '#111827'
             }}>
-              <span style={{ fontSize: '20px' }}>📋</span>
-            </div>
-          </div>
-        </div>
+              Nueva Propiedad
+            </h2>
 
-        {/* Completadas */}
-        <div 
-          onClick={() => handleStatCardClick('completed')}
-          style={{
-            backgroundColor: 'white',
-            padding: '16px',
-            borderRadius: '8px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>
-                Completadas
-              </p>
-              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#10b981' }}>
-                {stats.completed}
-              </p>
-              <div style={{ marginTop: '6px' }}>
+            <form>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151'
+                }}>
+                  Nombre de la Propiedad
+                </label>
+                <input
+                  type="text"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                  placeholder="Ej: Casa Los Robles"
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151'
+                }}>
+                  Dirección
+                </label>
+                <input
+                  type="text"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '14px'
+                  }}
+                  placeholder="Ej: Av. Principal 123, Quito"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151'
+                  }}>
+                    Propietario
+                  </label>
+                  <input
+                    type="text"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                    placeholder="Nombre del propietario"
+                  />
+                </div>
+
+                <div>
+                  <label style={{
+                    display: 'block',
+                    marginBottom: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    color: '#374151'
+                  }}>
+                    Tipo de Propiedad
+                  </label>
+                  <select
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '14px'
+                    }}
+                  >
+                    <option value="">Seleccionar tipo</option>
+                    <option value="Residencial">Residencial</option>
+                    <option value="Comercial">Comercial</option>
+                    <option value="Industrial">Industrial</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Sección de imágenes */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151'
+                }}>
+                  Imágenes de la Propiedad
+                </label>
+                
                 <div style={{
-                  backgroundColor: '#e5e7eb',
-                  height: '6px',
-                  borderRadius: '3px',
-                  overflow: 'hidden',
-                  width: '80px'
-                }}>
+                  border: '2px dashed #d1d5db',
+                  borderRadius: '8px',
+                  padding: '20px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  backgroundColor: '#f9fafb'
+                }}
+                onClick={() => document.getElementById('imageUpload')?.click()}
+                >
+                  <input
+                    id="imageUpload"
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    style={{ display: 'none' }}
+                  />
+                  <div style={{ fontSize: '40px', marginBottom: '8px' }}>📷</div>
+                  <p style={{ color: '#6b7280', fontSize: '14px' }}>
+                    Haz clic o arrastra imágenes aquí
+                  </p>
+                  <p style={{ color: '#9ca3af', fontSize: '12px', marginTop: '4px' }}>
+                    PNG, JPG hasta 10MB
+                  </p>
+                </div>
+
+                {/* Vista previa de imágenes */}
+                {imagePreview.length > 0 && (
                   <div style={{
-                    backgroundColor: '#10b981',
-                    height: '100%',
-                    width: `${completionPercentage}%`,
-                    transition: 'width 0.5s ease'
-                  }} />
-                </div>
-                <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>
-                  {completionPercentage}% del total
-                </p>
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                    gap: '12px',
+                    marginTop: '16px'
+                  }}>
+                    {imagePreview.map((preview, index) => (
+                      <div key={index} style={{ position: 'relative' }}>
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          style={{
+                            width: '100%',
+                            height: '100px',
+                            objectFit: 'cover',
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb'
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          style={{
+                            position: 'absolute',
+                            top: '4px',
+                            right: '4px',
+                            backgroundColor: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '24px',
+                            height: '24px',
+                            cursor: 'pointer',
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#d1fae5',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <span style={{ fontSize: '20px' }}>✓</span>
-            </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151'
+                }}>
+                  Notas adicionales
+                </label>
+                <textarea
+                  rows={3}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    resize: 'vertical'
+                  }}
+                  placeholder="Información adicional sobre la propiedad..."
+                />
+              </div>
+
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                justifyContent: 'flex-end'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewPropertyModal(false)
+                    setSelectedImages([])
+                    setImagePreview([])
+                  }}
+                  style={{
+                    padding: '10px 20px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    color: '#374151',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Crear Propiedad
+                </button>
+              </div>
+            </form>
           </div>
         </div>
+      )}
 
-        {/* Pendientes */}
-        <div 
-          onClick={() => handleStatCardClick('pending')}
-          style={{
-            backgroundColor: 'white',
-            padding: '16px',
-            borderRadius: '8px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}
+      {/* Modal Detalles de Propiedad */}
+      {showPropertyDetails && selectedProperty && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}
+        onClick={() => setShowPropertyDetails(false)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>
-                Pendientes
-              </p>
-              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#f59e0b' }}>
-                {stats.pending}
-              </p>
-            </div>
+          <div 
+            style={{
+              backgroundColor: 'white',
+              padding: '32px',
+              borderRadius: '12px',
+              width: '90%',
+              maxWidth: '700px',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#fef3c7',
-              borderRadius: '8px',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'space-between',
+              alignItems: 'start',
+              marginBottom: '24px'
             }}>
-              <span style={{ fontSize: '20px' }}>⏰</span>
+              <div>
+                <h2 style={{
+                  fontSize: '24px',
+                  fontWeight: 'bold',
+                  color: '#111827',
+                  marginBottom: '8px'
+                }}>
+                  {selectedProperty.name}
+                </h2>
+                <p style={{ color: '#6b7280' }}>{selectedProperty.address}</p>
+              </div>
+              <button
+                onClick={() => setShowPropertyDetails(false)}
+                style={{
+                  padding: '8px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '20px',
+                  color: '#6b7280'
+                }}
+              >
+                ✕
+              </button>
             </div>
-          </div>
-        </div>
 
-        {/* Tareas */}
-        <div 
-          onClick={() => handleStatCardClick('tasks')}
-          style={{
-            backgroundColor: 'white',
-            padding: '16px',
-            borderRadius: '8px',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-            transition: 'all 0.2s',
-            cursor: 'pointer'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-2px)'
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)'
-            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>
-                Tareas Activas
-              </p>
-              <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#3b82f6' }}>
-                {stats.tasks}
-              </p>
-            </div>
+            {/* Información básica */}
             <div style={{
-              width: '40px',
-              height: '40px',
-              backgroundColor: '#dbeafe',
+              backgroundColor: '#f9fafb',
+              padding: '20px',
               borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              marginBottom: '24px'
             }}>
-              <span style={{ fontSize: '20px' }}>📝</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Propietario</p>
+                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>{selectedProperty.owner}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Tipo</p>
+                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>{selectedProperty.type}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Estado</p>
+                  <span style={{
+                    padding: '4px 12px',
+                    borderRadius: '16px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    backgroundColor: selectedProperty.status === 'active' ? '#d1fae5' : '#fee2e2',
+                    color: selectedProperty.status === 'active' ? '#065f46' : '#991b1b'
+                  }}>
+                    {selectedProperty.status === 'active' ? 'Activo' : 'Inactivo'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Estadísticas de inspecciones */}
+            <div style={{ marginBottom: '24px' }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#111827',
+                marginBottom: '16px'
+              }}>
+                Resumen de Inspecciones
+              </h3>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr 1fr',
+                gap: '16px'
+              }}>
+                <div style={{
+                  backgroundColor: '#dbeafe',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e40af' }}>
+                    {selectedProperty.completedInspections}
+                  </p>
+                  <p style={{ fontSize: '14px', color: '#1e40af' }}>Completadas</p>
+                </div>
+                <div style={{
+                  backgroundColor: '#fef3c7',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#92400e' }}>
+                    {selectedProperty.pendingInspections}
+                  </p>
+                  <p style={{ fontSize: '14px', color: '#92400e' }}>Pendientes</p>
+                </div>
+                <div style={{
+                  backgroundColor: '#e0e7ff',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  textAlign: 'center'
+                }}>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#4338ca' }}>
+                    {selectedProperty.completedInspections + selectedProperty.pendingInspections}
+                  </p>
+                  <p style={{ fontSize: '14px', color: '#4338ca' }}>Total</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Última inspección */}
+            {selectedProperty.lastInspection && (
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  color: '#111827',
+                  marginBottom: '16px'
+                }}>
+                  Última Inspección
+                </h3>
+                <div style={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '16px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: '#6b7280' }}>Fecha:</span>
+                    <span style={{ fontWeight: '500' }}>{selectedProperty.lastInspection.date}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: '#6b7280' }}>Inspector:</span>
+                    <span style={{ fontWeight: '500' }}>{selectedProperty.lastInspection.inspector}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#6b7280' }}>Estado:</span>
+                    <span style={{
+                      fontWeight: '500',
+                      color: selectedProperty.lastInspection.status === 'completed' ? '#10b981' : '#f59e0b'
+                    }}>
+                      {selectedProperty.lastInspection.status === 'completed' ? 'Completada' : 'Pendiente'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Acciones */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              paddingTop: '24px',
+              borderTop: '1px solid #e5e7eb'
+            }}>
+              <button
+                onClick={() => {
+                  setShowPropertyDetails(false)
+                  router.push(`/dashboard/inspections/new?property=${selectedProperty.id}`)
+                }}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#dc2626',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Nueva Inspección
+              </button>
+              <button
+                onClick={() => router.push(`/dashboard/properties/${selectedProperty.id}/inspections`)}
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  color: '#374151',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Ver Todas las Inspecciones
+              </button>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Secciones de contenido */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
-        gap: '20px' 
-      }}>
-        {/* Inspecciones Recientes */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid #e5e7eb',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>
-              Inspecciones Recientes
-            </h2>
-            <button
-              onClick={() => router.push('/dashboard/inspections')}
-              style={{
-                color: '#dc2626',
-                backgroundColor: 'transparent',
-                border: 'none',
-                fontSize: '13px',
-                cursor: 'pointer',
-                fontWeight: '500'
-              }}
-            >
-              Ver todas →
-            </button>
-          </div>
-          
-          <div style={{ maxHeight: '280px', overflow: 'auto' }}>
-            {recentInspections.map((inspection, index) => (
-              <div 
-                key={inspection.id} 
-                style={{
-                  padding: '10px 20px',
-                  borderBottom: index < recentInspections.length - 1 ? '1px solid #f3f4f6' : 'none',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '12px', 
-                  flex: 1,
-                  alignItems: 'center',
-                  minWidth: 0 
-                }}>
-                  <span style={{ 
-                    fontWeight: '500', 
-                    color: '#111827',
-                    fontSize: '13px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '160px'
-                  }}>
-                    {inspection.property}
-                  </span>
-                  <span style={{ 
-                    color: '#6b7280', 
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '100px'
-                  }}>
-                    {inspection.client}
-                  </span>
-                  <span style={{ 
-                    color: '#6b7280', 
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {formatDate(inspection.date)}
-                  </span>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    backgroundColor: `${getStatusColor(inspection.status)}20`,
-                    color: getStatusColor(inspection.status),
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {getStatusText(inspection.status)}
-                  </span>
-                </div>
-                <button
-                  onClick={() => router.push(`/dashboard/inspections?id=${inspection.id}`)}
-                  style={{
-                    padding: '4px 10px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-                >
-                  Ver
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Tareas Pendientes */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid #e5e7eb',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>
-              Tareas Pendientes
-            </h2>
-            <button
-              onClick={() => router.push('/dashboard/tasks')}
-              style={{
-                color: '#dc2626',
-                backgroundColor: 'transparent',
-                border: 'none',
-                fontSize: '13px',
-                cursor: 'pointer',
-                fontWeight: '500'
-              }}
-            >
-              Ver todas →
-            </button>
-          </div>
-          
-          <div style={{ maxHeight: '280px', overflow: 'auto' }}>
-            {pendingTasks.map((task, index) => (
-              <div 
-                key={task.id} 
-                style={{
-                  padding: '10px 20px',
-                  borderBottom: index < pendingTasks.length - 1 ? '1px solid #f3f4f6' : 'none',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '12px', 
-                  flex: 1,
-                  alignItems: 'center',
-                  minWidth: 0 
-                }}>
-                  <span style={{ 
-                    fontWeight: '500', 
-                    color: '#111827',
-                    fontSize: '13px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '160px'
-                  }}>
-                    {task.task}
-                  </span>
-                  <span style={{ 
-                    color: '#6b7280', 
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '100px'
-                  }}>
-                    {task.property}
-                  </span>
-                  <span style={{
-                    fontSize: '11px',
-                    padding: '2px 6px',
-                    borderRadius: '3px',
-                    backgroundColor: `${getPriorityColor(task.priority)}20`,
-                    color: getPriorityColor(task.priority),
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {getPriorityText(task.priority)}
-                  </span>
-                </div>
-                <button
-                  onClick={() => router.push(`/dashboard/tasks?id=${task.id}`)}
-                  style={{
-                    padding: '4px 10px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-                >
-                  Ver
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Próximas Inspecciones */}
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-          overflow: 'hidden',
-          gridColumn: 'span 2'
-        }}>
-          <div style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid #e5e7eb',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>
-              Próximas Inspecciones
-            </h2>
-            <button
-              onClick={() => router.push('/dashboard/schedules')}
-              style={{
-                color: '#dc2626',
-                backgroundColor: 'transparent',
-                border: 'none',
-                fontSize: '13px',
-                cursor: 'pointer',
-                fontWeight: '500'
-              }}
-            >
-              Ver calendario completo →
-            </button>
-          </div>
-          
-          <div style={{ maxHeight: '280px', overflow: 'auto' }}>
-            {upcomingInspections.map((inspection, index) => (
-              <div 
-                key={inspection.id} 
-                style={{
-                  padding: '10px 20px',
-                  borderBottom: index < upcomingInspections.length - 1 ? '1px solid #f3f4f6' : 'none',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  transition: 'background-color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <div style={{ 
-                  display: 'flex', 
-                  gap: '12px', 
-                  flex: 1,
-                  alignItems: 'center',
-                  minWidth: 0 
-                }}>
-                  <span style={{ 
-                    fontWeight: '500', 
-                    color: '#111827',
-                    fontSize: '13px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '180px'
-                  }}>
-                    {inspection.property}
-                  </span>
-                  <span style={{ 
-                    color: '#6b7280', 
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '120px'
-                  }}>
-                    {inspection.client}
-                  </span>
-                  <span style={{ 
-                    color: '#6b7280', 
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {formatDate(inspection.date)}
-                  </span>
-                  <span style={{ 
-                    color: '#dc2626', 
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {inspection.time}
-                  </span>
-                  <span style={{ 
-                    color: '#6b7280', 
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: '100px'
-                  }}>
-                    {inspection.inspector}
-                  </span>
-                </div>
-                <button
-                  onClick={() => router.push(`/dashboard/schedules?date=${inspection.date}`)}
-                  style={{
-                    padding: '4px 10px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    fontWeight: '500',
-                    whiteSpace: 'nowrap',
-                    transition: 'background-color 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#b91c1c'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc2626'}
-                >
-                  Ver
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }

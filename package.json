@@ -16,12 +16,13 @@
     "quick-save": "git add . && git commit -m 'Quick save' && git push"
   },
   "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
     "@googlemaps/react-wrapper": "^1.1.35",
     "@hookform/resolvers": "^3.3.4",
     "@next/font": "^14.2.15",
     "@react-google-maps/api": "^2.19.3",
     "@react-oauth/google": "^0.12.2",
-    "@react-pdf/renderer": "^3.4.2",
+    "@react-pdf/renderer": "^3.4.5",
     "axios": "^1.6.8",
     "date-fns": "^3.6.0",
     "googleapis": "^134.0.0",
@@ -36,6 +37,7 @@
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.51.2",
     "react-hot-toast": "^2.4.1",
+    "react-pdf": "^10.1.0",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4",
     "zustand": "^4.5.2"
@@ -46,6 +48,7 @@
     "@types/react": "^18.3.23",
     "@types/react-calendar": "^4.1.0",
     "@types/react-dom": "^18",
+    "@types/react-pdf": "^6.2.0",
     "autoprefixer": "^10.4.21",
     "chokidar": "^3.6.0",
     "eslint": "^8",
