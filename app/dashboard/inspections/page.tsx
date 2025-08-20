@@ -1,27 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Inspection {
   id: string
   code: string
-  property: string
-  address: string
-  client: string
-  inspector: string
-  status: 'completed' | 'in-progress' | 'scheduled'
-  progress: number
-  date: string
+  propertyId: string
+  clientName: string
+  clientEmail?: string
   type: string
-  priority: 'high' | 'normal' | 'low'
-  duration?: string
-  checklistItems?: {
-    total: number
-    completed: number
-  }
-  images?: string[]
+  status: string
+  progress: number
+  inspectorId: string
+  inspectorName: string
+  scheduledDate: string
+  completedDate?: string
   notes?: string
+  createdAt: string
+  updatedAt: string
+  googleDriveId?: string
 }
 
 export default function InspectionsPage() {
@@ -32,87 +30,379 @@ export default function InspectionsPage() {
   const [showNewInspectionModal, setShowNewInspectionModal] = useState(false)
   const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null)
   const [showInspectionDetails, setShowInspectionDetails] = useState(false)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  const [imagePreview, setImagePreview] = useState<string[]>([])
   const [activeActionMenu, setActiveActionMenu] = useState<string | null>(null)
+  const [inspections, setInspections] = useState<Inspection[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false)
+  const [templateContent, setTemplateContent] = useState('')
 
-  // Datos de ejemplo
-  const [inspections] = useState<Inspection[]>([
-    {
-      id: 'INS-001',
-      code: 'INS-2024-001',
-      property: 'Casa Los Robles',
-      address: 'Av. Principal 123, Quito',
-      client: 'Juan Pérez',
-      inspector: 'Carlos López',
-      status: 'completed',
-      progress: 100,
-      date: '2024-01-20',
-      type: 'Regular',
-      priority: 'normal',
-      duration: '2h 30min',
-      checklistItems: { total: 45, completed: 45 },
-      images: ['/img1.jpg', '/img2.jpg']
-    },
-    {
-      id: 'INS-002',
-      code: 'INS-2024-002',
-      property: 'Edificio Central',
-      address: 'Calle 45 #789, Guayaquil',
-      client: 'María García',
-      inspector: 'Ana Martínez',
-      status: 'in-progress',
-      progress: 65,
-      date: '2024-01-21',
-      type: 'Pre-compra',
-      priority: 'high',
-      checklistItems: { total: 50, completed: 32 }
-    },
-    {
-      id: 'INS-003',
-      code: 'INS-2024-003',
-      property: 'Local Plaza Norte',
-      address: 'Plaza Norte Local 12',
-      client: 'Roberto Silva',
-      inspector: 'Pedro Sánchez',
-      status: 'scheduled',
-      progress: 0,
-      date: '2024-01-25',
-      type: 'Comercial',
-      priority: 'normal'
-    },
-    {
-      id: 'INS-004',
-      code: 'INS-2024-004',
-      property: 'Departamento Sky Tower',
-      address: 'Torre Sky Piso 15',
-      client: 'Carmen Ruiz',
-      inspector: 'Luis Mendoza',
-      status: 'in-progress',
-      progress: 30,
-      date: '2024-01-22',
-      type: 'Post-construcción',
-      priority: 'low',
-      checklistItems: { total: 60, completed: 18 }
-    }
-  ])
+  // Cargar inspecciones de la base de datos
+  useEffect(() => {
+    fetchInspections()
+  }, [])
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    setSelectedImages(prev => [...prev, ...files])
-    
-    files.forEach(file => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(prev => [...prev, reader.result as string])
+  const fetchInspections = async () => {
+    try {
+      const response = await fetch('/api/inspections')
+      if (response.ok) {
+        const data = await response.json()
+        setInspections(data)
       }
-      reader.readAsDataURL(file)
-    })
+    } catch (error) {
+      console.error('Error al cargar inspecciones:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const removeImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index))
-    setImagePreview(prev => prev.filter((_, i) => i !== index))
+  // Función para generar la plantilla
+  const generateTemplate = () => {
+    if (!selectedInspection) return
+    
+    const template = `REPORTE DE INSPECCIÓN - ${selectedInspection.code}
+=====================================
+
+INFORMACIÓN GENERAL
+==================
+Código de Inspección: ${selectedInspection.code}
+Fecha de Creación: ${formatDate(selectedInspection.createdAt)}
+Estado Actual: ${getStatusText(selectedInspection.status)}
+Progreso: ${selectedInspection.progress}%
+
+DATOS DEL CLIENTE
+=================
+Nombre: ${selectedInspection.clientName}
+Email: ${selectedInspection.clientEmail || 'No especificado'}
+Teléfono: [Por completar]
+Dirección: [Por completar]
+
+INFORMACIÓN DE LA PROPIEDAD
+===========================
+ID de Propiedad: ${selectedInspection.propertyId}
+Tipo de Propiedad: [Por completar]
+Dirección: [Por completar]
+Características: [Por completar]
+
+DETALLES DE LA INSPECCIÓN
+=========================
+Tipo de Inspección: ${selectedInspection.type}
+Inspector Asignado: ${selectedInspection.inspectorName}
+Fecha Programada: ${formatDate(selectedInspection.scheduledDate)}
+Fecha de Realización: ${selectedInspection.completedDate ? formatDate(selectedInspection.completedDate) : 'Pendiente'}
+
+OBSERVACIONES INICIALES
+=======================
+${selectedInspection.notes || 'Sin observaciones iniciales'}
+
+CHECKLIST DE INSPECCIÓN
+=======================
+[ ] Estructura exterior
+[ ] Sistema eléctrico
+[ ] Sistema de plomería
+[ ] Techos y cubiertas
+[ ] Ventanas y puertas
+[ ] Sistemas de climatización
+[ ] Áreas comunes
+[ ] Seguridad y emergencias
+[ ] Otros: _________________
+
+HALLAZGOS Y OBSERVACIONES
+=========================
+1. [Describir hallazgo]
+   - Ubicación: 
+   - Severidad: 
+   - Recomendación: 
+
+2. [Describir hallazgo]
+   - Ubicación: 
+   - Severidad: 
+   - Recomendación: 
+
+RECOMENDACIONES
+===============
+- [Recomendación 1]
+- [Recomendación 2]
+- [Recomendación 3]
+
+CONCLUSIONES
+============
+[Escribir las conclusiones generales de la inspección]
+
+PRÓXIMOS PASOS
+==============
+1. [Acción requerida]
+2. [Acción requerida]
+3. [Acción requerida]
+
+FIRMAS Y VALIDACIÓN
+===================
+Inspector: _________________________ Fecha: __________
+           ${selectedInspection.inspectorName}
+
+Cliente: ____________________________ Fecha: __________
+         ${selectedInspection.clientName}
+
+Supervisor: _________________________ Fecha: __________
+
+---
+Documento generado por INSPECTEN
+Fecha de generación: ${new Date().toLocaleString('es-ES')}
+`
+    
+    setTemplateContent(template)
+  }
+
+  // Función para guardar la plantilla y actualizar en Google Drive
+  const handleSaveTemplate = async (inspection: Inspection) => {
+    try {
+      // Si ya existe un documento en Google Drive, actualizarlo
+      if (inspection.googleDriveId) {
+        // Aquí podrías implementar la actualización del documento
+        // Por ahora solo mostramos un mensaje
+        alert('Plantilla guardada. En producción, esto actualizaría el documento en Google Drive.')
+      } else {
+        // Si no existe, crear uno nuevo con la plantilla editada
+        const response = await fetch(`/api/inspections/${inspection.id}/google-drive`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            inspectionData: {
+              code: inspection.code,
+              clientName: inspection.clientName,
+              clientEmail: inspection.clientEmail,
+              type: inspection.type,
+              inspectorName: inspection.inspectorName,
+              propertyId: inspection.propertyId,
+              scheduledDate: inspection.scheduledDate,
+              status: inspection.status,
+              notes: inspection.notes,
+              progress: inspection.progress
+            },
+            customTemplate: templateContent // Enviar la plantilla personalizada
+          })
+        })
+        
+        if (response.ok) {
+          const result = await response.json()
+          alert('Documento creado en Google Drive con la plantilla personalizada!')
+          
+          // Actualizar la inspección con el ID del documento
+          await fetch(`/api/inspections/${inspection.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              googleDriveId: result.googleDriveId
+            }),
+          })
+          
+          // Recargar inspecciones
+          await fetchInspections()
+          
+          // Cambiar a la pestaña de información
+          setShowTemplateEditor(false)
+        }
+      }
+    } catch (error) {
+      console.error('Error al guardar plantilla:', error)
+      alert('Error al guardar la plantilla')
+    }
+  }
+  
+  // Función para crear/editar inspección en Google Drive
+  const handleGoogleDriveEdit = async (inspection: Inspection) => {
+    try {
+      // Verificar si la inspección ya tiene un documento en Google Drive
+      const response = await fetch(`/api/inspections/${inspection.id}/google-drive`, {
+        method: 'GET'
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        
+        if (data.googleDriveId || inspection.googleDriveId) {
+          // Si ya existe, abrir el documento
+          const docId = data.googleDriveId || inspection.googleDriveId
+          window.open(`https://docs.google.com/document/d/${docId}/edit`, '_blank')
+        } else {
+          // Si no existe, mostrar mensaje y cambiar a la pestaña de plantilla
+          if (confirm('No existe un documento en Google Drive para esta inspección. ¿Deseas crear uno ahora?')) {
+            setShowTemplateEditor(true)
+            generateTemplate()
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error con Google Drive:', error)
+      alert('Error al conectar con Google Drive')
+    }
+  }
+
+  // Función para descargar inspección como PDF
+  const handleDownloadPDF = async (inspection: Inspection) => {
+    try {
+      const response = await fetch(`/api/inspections/${inspection.id}/pdf`, {
+        method: 'GET',
+      })
+      
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `Inspeccion_${inspection.code}_${inspection.clientName.replace(/\s+/g, '_')}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      } else {
+        alert('Error al generar el PDF')
+      }
+    } catch (error) {
+      console.error('Error al descargar PDF:', error)
+      alert('Error al descargar el PDF')
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    
+    try {
+      const formElement = e.currentTarget
+      const formData = {
+        propertyId: (formElement.elements.namedItem('property') as HTMLSelectElement).value,
+        clientName: (formElement.elements.namedItem('clientName') as HTMLInputElement).value,
+        clientEmail: (formElement.elements.namedItem('clientEmail') as HTMLInputElement)?.value || '',
+        type: (formElement.elements.namedItem('type') as HTMLSelectElement).value,
+        inspectorId: (formElement.elements.namedItem('inspector') as HTMLSelectElement).value,
+        inspectorName: (formElement.elements.namedItem('inspector') as HTMLSelectElement).options[(formElement.elements.namedItem('inspector') as HTMLSelectElement).selectedIndex].text,
+        scheduledDate: `${(formElement.elements.namedItem('date') as HTMLInputElement).value}T${(formElement.elements.namedItem('time') as HTMLInputElement).value}`,
+        notes: (formElement.elements.namedItem('notes') as HTMLTextAreaElement)?.value || ''
+      };
+
+      // 1. Crear la inspección en la base de datos
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        const newInspection = await response.json();
+        
+        // 2. Generar la plantilla para el nuevo documento
+        const template = `REPORTE DE INSPECCIÓN - ${newInspection.code}
+=====================================
+
+INFORMACIÓN GENERAL
+==================
+Código de Inspección: ${newInspection.code}
+Fecha de Creación: ${new Date().toLocaleDateString('es-ES')}
+Estado Actual: Programada
+Progreso: 0%
+
+DATOS DEL CLIENTE
+=================
+Nombre: ${formData.clientName}
+Email: ${formData.clientEmail || 'No especificado'}
+Teléfono: [Por completar]
+Dirección: [Por completar]
+
+INFORMACIÓN DE LA PROPIEDAD
+===========================
+ID de Propiedad: ${formData.propertyId}
+Tipo de Propiedad: [Por completar]
+Dirección: [Por completar]
+Características: [Por completar]
+
+DETALLES DE LA INSPECCIÓN
+=========================
+Tipo de Inspección: ${formData.type}
+Inspector Asignado: ${formData.inspectorName}
+Fecha Programada: ${new Date(formData.scheduledDate).toLocaleDateString('es-ES')}
+Hora Programada: ${new Date(formData.scheduledDate).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+
+OBSERVACIONES INICIALES
+=======================
+${formData.notes || 'Sin observaciones iniciales'}
+
+CHECKLIST DE INSPECCIÓN
+=======================
+[ ] Estructura exterior
+[ ] Sistema eléctrico
+[ ] Sistema de plomería
+[ ] Techos y cubiertas
+[ ] Ventanas y puertas
+[ ] Sistemas de climatización
+[ ] Áreas comunes
+[ ] Seguridad y emergencias
+[ ] Otros: _________________
+
+[El resto del documento se completará durante la inspección]
+
+---
+Documento generado automáticamente por INSPECTEN
+Fecha: ${new Date().toLocaleString('es-ES')}
+`;
+        
+        // 3. Crear automáticamente el documento en Google Drive
+        const googleDriveResponse = await fetch(`/api/inspections/${newInspection.id}/google-drive`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            inspectionData: {
+              code: newInspection.code,
+              clientName: formData.clientName,
+              clientEmail: formData.clientEmail,
+              type: formData.type,
+              inspectorName: formData.inspectorName,
+              propertyId: formData.propertyId,
+              scheduledDate: formData.scheduledDate,
+              status: 'programada',
+              notes: formData.notes,
+              progress: 0
+            },
+            customTemplate: template
+          })
+        });
+        
+        if (googleDriveResponse.ok) {
+          const googleDoc = await googleDriveResponse.json();
+          console.log('Documento creado en Google Drive:', googleDoc.googleDriveId);
+          
+          // 4. Actualizar la inspección con el ID de Google Drive
+          await fetch(`/api/inspections/${newInspection.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              googleDriveId: googleDoc.googleDriveId
+            }),
+          });
+          
+          alert(`✅ Inspección ${newInspection.code} creada exitosamente!\n📄 Documento creado en Google Drive`);
+        } else {
+          // Si falla Google Drive, aún así la inspección se creó
+          alert(`⚠️ Inspección ${newInspection.code} creada, pero hubo un error al crear el documento en Google Drive.`);
+        }
+        
+        setShowNewInspectionModal(false);
+        fetchInspections(); // Recargar la lista
+      } else {
+        throw new Error('Error al crear inspección');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al crear la inspección. Por favor intenta de nuevo.');
+    }
   }
 
   const viewInspectionDetails = (inspection: Inspection) => {
@@ -127,49 +417,57 @@ export default function InspectionsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return '#10b981'
-      case 'in-progress': return '#f59e0b'
-      case 'scheduled': return '#3b82f6'
+      case 'completada': return '#10b981'
+      case 'en_proceso': return '#f59e0b'
+      case 'programada': return '#3b82f6'
       default: return '#6b7280'
     }
   }
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'completed': return 'Completada'
-      case 'in-progress': return 'En Proceso'
-      case 'scheduled': return 'Programada'
+      case 'completada': return 'Completada'
+      case 'en_proceso': return 'En Proceso'
+      case 'programada': return 'Programada'
       default: return status
     }
   }
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return '#dc2626'
-      case 'normal': return '#6b7280'
-      case 'low': return '#3b82f6'
-      default: return '#6b7280'
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('es-ES', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    })
   }
 
   // Filtrado
   const filteredInspections = inspections.filter(inspection => {
     const matchesSearch = 
       inspection.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inspection.property.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inspection.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inspection.inspector.toLowerCase().includes(searchTerm.toLowerCase())
+      inspection.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      inspection.inspectorName.toLowerCase().includes(searchTerm.toLowerCase())
     
     const matchesStatus = filterStatus === 'all' || inspection.status === filterStatus
     
-    // Filtro de fecha simplificado para el ejemplo
-    const matchesDate = filterDate === 'all' || 
-      (filterDate === 'today' && inspection.date === new Date().toISOString().split('T')[0]) ||
-      (filterDate === 'week' && true) || // Implementar lógica real
-      (filterDate === 'month' && true)   // Implementar lógica real
-    
-    return matchesSearch && matchesStatus && matchesDate
+    return matchesSearch && matchesStatus
   })
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '400px',
+        fontSize: '18px',
+        color: '#6b7280'
+      }}>
+        Cargando inspecciones...
+      </div>
+    )
+  }
 
   return (
     <div onClick={handleClickOutside}>
@@ -190,7 +488,7 @@ export default function InspectionsPage() {
             Inspecciones
           </h1>
           <p style={{ color: '#6b7280' }}>
-            Gestiona todas las inspecciones realizadas y programadas
+            Total: {inspections.length} inspecciones
           </p>
         </div>
         <button
@@ -223,13 +521,13 @@ export default function InspectionsPage() {
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 200px 200px',
+          gridTemplateColumns: '1fr 200px',
           gap: '16px',
           alignItems: 'center'
         }}>
           <input
             type="text"
-            placeholder="Buscar por código, propiedad, cliente o inspector..."
+            placeholder="Buscar por código, cliente o inspector..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
@@ -250,328 +548,118 @@ export default function InspectionsPage() {
             }}
           >
             <option value="all">Todos los estados</option>
-            <option value="completed">Completadas</option>
-            <option value="in-progress">En Proceso</option>
-            <option value="scheduled">Programadas</option>
-          </select>
-          <select
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            style={{
-              padding: '10px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px'
-            }}
-          >
-            <option value="all">Todas las fechas</option>
-            <option value="today">Hoy</option>
-            <option value="week">Esta semana</option>
-            <option value="month">Este mes</option>
+            <option value="completada">Completadas</option>
+            <option value="en_proceso">En Proceso</option>
+            <option value="programada">Programadas</option>
           </select>
         </div>
       </div>
 
-      {/* Lista de Inspecciones Compacta */}
+      {/* Lista de Inspecciones Simplificada */}
       <div style={{
         backgroundColor: 'white',
         borderRadius: '12px',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         overflow: 'hidden'
       }}>
-        {filteredInspections.map((inspection, index) => (
-          <div
-            key={inspection.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px 20px',
-              borderBottom: index < filteredInspections.length - 1 ? '1px solid #e5e7eb' : 'none',
-              transition: 'background-color 0.2s',
-              position: 'relative'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f9fafb'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white'
-            }}
-          >
-            {/* Información principal */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                display: 'flex',
+        {/* Encabezados */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '120px 1fr 150px 120px 120px 80px',
+          padding: '12px 20px',
+          backgroundColor: '#f9fafb',
+          borderBottom: '1px solid #e5e7eb',
+          fontSize: '13px',
+          fontWeight: '600',
+          color: '#374151'
+        }}>
+          <div>Código</div>
+          <div>Cliente</div>
+          <div>Inspector</div>
+          <div>Fecha</div>
+          <div>Estado</div>
+          <div>Acciones</div>
+        </div>
+
+        {/* Filas */}
+        {filteredInspections.length === 0 ? (
+          <div style={{
+            padding: '40px',
+            textAlign: 'center',
+            color: '#6b7280'
+          }}>
+            No se encontraron inspecciones
+          </div>
+        ) : (
+          filteredInspections.map((inspection, index) => (
+            <div
+              key={inspection.id}
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '120px 1fr 150px 120px 120px 80px',
                 alignItems: 'center',
-                gap: '12px',
-                marginBottom: '4px'
-              }}>
-                <h3 style={{
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  color: '#111827',
-                  margin: 0
-                }}>
-                  {inspection.code}
-                </h3>
+                padding: '16px 20px',
+                borderBottom: index < filteredInspections.length - 1 ? '1px solid #e5e7eb' : 'none',
+                fontSize: '14px',
+                transition: 'background-color 0.2s',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f9fafb'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'white'
+              }}
+            >
+              <div style={{ fontWeight: '600', color: '#111827' }}>
+                {inspection.code}
+              </div>
+              <div style={{ color: '#374151' }}>
+                {inspection.clientName}
+              </div>
+              <div style={{ color: '#6b7280' }}>
+                {inspection.inspectorName}
+              </div>
+              <div style={{ color: '#6b7280' }}>
+                {formatDate(inspection.scheduledDate)}
+              </div>
+              <div>
                 <span style={{
-                  fontSize: '15px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  {inspection.property}
-                </span>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '11px',
+                  padding: '4px 12px',
+                  borderRadius: '16px',
+                  fontSize: '12px',
                   fontWeight: '500',
                   backgroundColor: `${getStatusColor(inspection.status)}20`,
-                  color: getStatusColor(inspection.status),
-                  whiteSpace: 'nowrap'
+                  color: getStatusColor(inspection.status)
                 }}>
                   {getStatusText(inspection.status)}
                 </span>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  backgroundColor: inspection.type === 'Regular' ? '#e0e7ff' : 
-                                 inspection.type === 'Pre-compra' ? '#fef3c7' : 
-                                 inspection.type === 'Comercial' ? '#dbeafe' : '#e5e7eb',
-                  color: inspection.type === 'Regular' ? '#4338ca' : 
-                         inspection.type === 'Pre-compra' ? '#92400e' : 
-                         inspection.type === 'Comercial' ? '#1e40af' : '#374151'
-                }}>
-                  {inspection.type}
-                </span>
-                {inspection.priority === 'high' && (
-                  <span style={{
-                    color: '#dc2626',
-                    fontSize: '12px',
-                    fontWeight: '500'
-                  }}>
-                    ⚠️ Alta prioridad
-                  </span>
-                )}
               </div>
-              <div style={{
-                fontSize: '13px',
-                color: '#6b7280',
-                display: 'flex',
-                gap: '16px',
-                alignItems: 'center'
-              }}>
-                <span>{inspection.address}</span>
-                <span>•</span>
-                <span>Cliente: {inspection.client}</span>
-                <span>•</span>
-                <span>Inspector: {inspection.inspector}</span>
-                <span>•</span>
-                <span>📅 {inspection.date}</span>
-              </div>
-            </div>
-
-            {/* Progreso y estadísticas */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '24px',
-              marginRight: '20px'
-            }}>
-              {/* Barra de progreso */}
-              {inspection.status !== 'scheduled' && (
-                <div style={{ width: '120px' }}>
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '12px',
-                    marginBottom: '4px'
-                  }}>
-                    <span style={{ color: '#6b7280' }}>Progreso</span>
-                    <span style={{ fontWeight: '600' }}>{inspection.progress}%</span>
-                  </div>
-                  <div style={{
-                    backgroundColor: '#e5e7eb',
-                    height: '6px',
-                    borderRadius: '3px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      width: `${inspection.progress}%`,
-                      height: '100%',
-                      backgroundColor: getStatusColor(inspection.status),
-                      transition: 'width 0.3s ease'
-                    }} />
-                  </div>
-                </div>
-              )}
-
-              {/* Items del checklist */}
-              {inspection.checklistItems && (
-                <div style={{ textAlign: 'center', fontSize: '13px' }}>
-                  <div style={{ fontWeight: '600' }}>
-                    {inspection.checklistItems.completed}/{inspection.checklistItems.total}
-                  </div>
-                  <div style={{ color: '#9ca3af', fontSize: '11px' }}>Items</div>
-                </div>
-              )}
-
-              {/* Duración */}
-              {inspection.duration && (
-                <div style={{ textAlign: 'center', fontSize: '13px' }}>
-                  <div style={{ fontWeight: '600' }}>{inspection.duration}</div>
-                  <div style={{ color: '#9ca3af', fontSize: '11px' }}>Duración</div>
-                </div>
-              )}
-            </div>
-
-            {/* Botón de acciones */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setActiveActionMenu(activeActionMenu === inspection.id ? null : inspection.id)
-              }}
-              style={{
-                padding: '6px',
-                backgroundColor: 'transparent',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px'
-              }}
-            >
-              ⋮
-            </button>
-
-            {/* Menú de acciones */}
-            {activeActionMenu === inspection.id && (
-              <div 
-                style={{
-                  position: 'absolute',
-                  right: '20px',
-                  top: '100%',
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  zIndex: 10,
-                  minWidth: '180px',
-                  marginTop: '4px'
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   onClick={() => viewInspectionDetails(inspection)}
                   style={{
-                    width: '100%',
-                    padding: '10px 16px',
+                    padding: '6px 12px',
                     backgroundColor: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
                     cursor: 'pointer',
-                    fontSize: '14px',
-                    color: '#374151',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
+                    fontSize: '12px',
+                    color: '#374151'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  👁️ Ver detalles
-                </button>
-                {inspection.status === 'in-progress' && (
-                  <button
-                    onClick={() => router.push(`/dashboard/inspections/${inspection.id}/continue`)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 16px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      color: '#374151',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    ▶️ Continuar
-                  </button>
-                )}
-                {inspection.status === 'completed' && (
-                  <button
-                    style={{
-                      width: '100%',
-                      padding: '10px 16px',
-                      backgroundColor: 'transparent',
-                      border: 'none',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      color: '#374151',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    📄 Generar reporte
-                  </button>
-                )}
-                <button
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    color: '#374151',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#f3f4f6'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  ✏️ Editar
-                </button>
-                <hr style={{ margin: 0, border: 'none', borderTop: '1px solid #e5e7eb' }} />
-                <button
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    color: '#dc2626',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent'
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  🗑️ Eliminar
+                  Detalles
                 </button>
               </div>
-            )}
-          </div>
-        ))}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Modal Nueva Inspección */}
@@ -596,7 +684,7 @@ export default function InspectionsPage() {
               padding: '32px',
               borderRadius: '12px',
               width: '90%',
-              maxWidth: '600px',
+              maxWidth: '500px',
               maxHeight: '90vh',
               overflow: 'auto'
             }}
@@ -611,28 +699,112 @@ export default function InspectionsPage() {
               Nueva Inspección
             </h2>
 
-            <form>
+            <form onSubmit={handleSubmit}>
               <div style={{ marginBottom: '20px' }}>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '4px',
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151'
                 }}>
                   Propiedad
                 </label>
-                <select style={{
-                  width: '100%',
-                  padding: '10px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '14px'
-                }}>
+                <select
+                  name="property"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
                   <option value="">Seleccionar propiedad</option>
-                  <option value="1">Casa Los Robles - Av. Principal 123</option>
-                  <option value="2">Edificio Central - Calle 45 #789</option>
-                  <option value="3">Local Plaza Norte - Plaza Norte Local 12</option>
+                  <option value="1">Casa Mediterránea - Av. Principal 123</option>
+                  <option value="2">Edificio Central - Centro Comercial</option>
+                  <option value="3">Villa Los Pinos - Urbanización Norte</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '4px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151'
+                }}>
+                  Cliente
+                </label>
+                <input
+                  name="clientName"
+                  type="text"
+                  required
+                  placeholder="Nombre del cliente"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '4px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151'
+                }}>
+                  Email del Cliente (Opcional)
+                </label>
+                <input
+                  name="clientEmail"
+                  type="email"
+                  placeholder="cliente@email.com"
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{
+                  display: 'block',
+                  marginBottom: '4px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#374151'
+                }}>
+                  Tipo de Inspección
+                </label>
+                <select
+                  name="type"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
+                >
+                  <option value="">Seleccionar tipo</option>
+                  <option value="general">Inspección General</option>
+                  <option value="preventiva">Inspección Preventiva</option>
+                  <option value="correctiva">Inspección Correctiva</option>
+                  <option value="seguridad">Inspección de Seguridad</option>
                 </select>
               </div>
 
@@ -640,59 +812,7 @@ export default function InspectionsPage() {
                 <div>
                   <label style={{
                     display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#374151'
-                  }}>
-                    Inspector
-                  </label>
-                  <select style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}>
-                    <option value="">Asignar inspector</option>
-                    <option value="1">Carlos López</option>
-                    <option value="2">Ana Martínez</option>
-                    <option value="3">Pedro Sánchez</option>
-                    <option value="4">Luis Mendoza</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#374151'
-                  }}>
-                    Tipo de Inspección
-                  </label>
-                  <select style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}>
-                    <option value="">Seleccionar tipo</option>
-                    <option value="regular">Regular</option>
-                    <option value="pre-compra">Pre-compra</option>
-                    <option value="post-construccion">Post-construcción</option>
-                    <option value="comercial">Comercial</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
+                    marginBottom: '4px',
                     fontSize: '14px',
                     fontWeight: '500',
                     color: '#374151'
@@ -700,21 +820,22 @@ export default function InspectionsPage() {
                     Fecha
                   </label>
                   <input
+                    name="date"
                     type="date"
+                    required
                     style={{
                       width: '100%',
-                      padding: '10px',
+                      padding: '8px 12px',
                       border: '1px solid #d1d5db',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       fontSize: '14px'
                     }}
                   />
                 </div>
-
                 <div>
                   <label style={{
                     display: 'block',
-                    marginBottom: '8px',
+                    marginBottom: '4px',
                     fontSize: '14px',
                     fontWeight: '500',
                     color: '#374151'
@@ -722,12 +843,14 @@ export default function InspectionsPage() {
                     Hora
                   </label>
                   <input
+                    name="time"
                     type="time"
+                    required
                     style={{
                       width: '100%',
-                      padding: '10px',
+                      padding: '8px 12px',
                       border: '1px solid #d1d5db',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       fontSize: '14px'
                     }}
                   />
@@ -737,174 +860,68 @@ export default function InspectionsPage() {
               <div style={{ marginBottom: '20px' }}>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '4px',
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151'
                 }}>
-                  Prioridad
+                  Inspector Asignado
                 </label>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}>
-                    <input type="radio" name="priority" value="high" />
-                    <span style={{ color: '#dc2626' }}>⚠️ Alta</span>
-                  </label>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}>
-                    <input type="radio" name="priority" value="normal" defaultChecked />
-                    <span>Normal</span>
-                  </label>
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer'
-                  }}>
-                    <input type="radio" name="priority" value="low" />
-                    <span style={{ color: '#3b82f6' }}>Baja</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Sección de imágenes */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Documentos/Imágenes iniciales
-                </label>
-                
-                <div style={{
-                  border: '2px dashed #d1d5db',
-                  borderRadius: '8px',
-                  padding: '20px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: '#f9fafb'
-                }}
-                onClick={() => document.getElementById('docUpload')?.click()}
+                <select
+                  name="inspector"
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    backgroundColor: 'white'
+                  }}
                 >
-                  <input
-                    id="docUpload"
-                    type="file"
-                    multiple
-                    accept="image/*,application/pdf"
-                    onChange={handleImageChange}
-                    style={{ display: 'none' }}
-                  />
-                  <div style={{ fontSize: '40px', marginBottom: '8px' }}>📁</div>
-                  <p style={{ color: '#6b7280', fontSize: '14px' }}>
-                    Haz clic o arrastra archivos aquí
-                  </p>
-                  <p style={{ color: '#9ca3af', fontSize: '12px', marginTop: '4px' }}>
-                    PDF, PNG, JPG hasta 10MB
-                  </p>
-                </div>
-
-                {/* Vista previa */}
-                {imagePreview.length > 0 && (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                    gap: '12px',
-                    marginTop: '16px'
-                  }}>
-                    {imagePreview.map((preview, index) => (
-                      <div key={index} style={{ position: 'relative' }}>
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          style={{
-                            width: '100%',
-                            height: '100px',
-                            objectFit: 'cover',
-                            borderRadius: '8px',
-                            border: '1px solid #e5e7eb'
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          style={{
-                            position: 'absolute',
-                            top: '4px',
-                            right: '4px',
-                            backgroundColor: '#dc2626',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '50%',
-                            width: '24px',
-                            height: '24px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  <option value="">Seleccionar inspector</option>
+                  <option value="1">Carlos Rodríguez</option>
+                  <option value="2">Ana Martínez</option>
+                  <option value="3">Pedro Sánchez</option>
+                  <option value="4">Francisco Guarderas</option>
+                </select>
               </div>
 
               <div style={{ marginBottom: '24px' }}>
                 <label style={{
                   display: 'block',
-                  marginBottom: '8px',
+                  marginBottom: '4px',
                   fontSize: '14px',
                   fontWeight: '500',
                   color: '#374151'
                 }}>
-                  Notas/Instrucciones
+                  Notas (Opcional)
                 </label>
                 <textarea
+                  name="notes"
                   rows={3}
+                  placeholder="Agregar notas o instrucciones especiales..."
                   style={{
                     width: '100%',
-                    padding: '10px',
+                    padding: '8px 12px',
                     border: '1px solid #d1d5db',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     fontSize: '14px',
                     resize: 'vertical'
                   }}
-                  placeholder="Instrucciones especiales para el inspector..."
                 />
               </div>
 
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                justifyContent: 'flex-end'
-              }}>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowNewInspectionModal(false)
-                    setSelectedImages([])
-                    setImagePreview([])
-                  }}
+                  onClick={() => setShowNewInspectionModal(false)}
                   style={{
-                    padding: '10px 20px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    backgroundColor: 'white',
+                    padding: '8px 16px',
+                    backgroundColor: '#f3f4f6',
                     color: '#374151',
+                    border: 'none',
+                    borderRadius: '6px',
                     fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer'
@@ -915,11 +932,11 @@ export default function InspectionsPage() {
                 <button
                   type="submit"
                   style={{
-                    padding: '10px 20px',
+                    padding: '8px 16px',
                     backgroundColor: '#dc2626',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer'
@@ -947,7 +964,10 @@ export default function InspectionsPage() {
           justifyContent: 'center',
           zIndex: 1000
         }}
-        onClick={() => setShowInspectionDetails(false)}
+        onClick={() => {
+          setShowInspectionDetails(false)
+          setShowTemplateEditor(false)
+        }}
         >
           <div 
             style={{
@@ -955,9 +975,10 @@ export default function InspectionsPage() {
               padding: '32px',
               borderRadius: '12px',
               width: '90%',
-              maxWidth: '700px',
+              maxWidth: showTemplateEditor ? '800px' : '600px',
               maxHeight: '90vh',
-              overflow: 'auto'
+              overflow: 'auto',
+              transition: 'max-width 0.3s ease'
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -972,14 +993,19 @@ export default function InspectionsPage() {
                   fontSize: '24px',
                   fontWeight: 'bold',
                   color: '#111827',
-                  marginBottom: '8px'
+                  marginBottom: '4px'
                 }}>
-                  Inspección {selectedInspection.code}
+                  {selectedInspection.code}
                 </h2>
-                <p style={{ color: '#6b7280' }}>{selectedInspection.property}</p>
+                <p style={{ color: '#6b7280', fontSize: '14px' }}>
+                  Creada: {formatDate(selectedInspection.createdAt)}
+                </p>
               </div>
               <button
-                onClick={() => setShowInspectionDetails(false)}
+                onClick={() => {
+                  setShowInspectionDetails(false)
+                  setShowTemplateEditor(false)
+                }}
                 style={{
                   padding: '8px',
                   backgroundColor: 'transparent',
@@ -993,142 +1019,252 @@ export default function InspectionsPage() {
               </button>
             </div>
 
-            {/* Información básica */}
+            {/* Tabs para alternar entre detalles y editor */}
             <div style={{
-              backgroundColor: '#f9fafb',
-              padding: '20px',
-              borderRadius: '8px',
+              display: 'flex',
+              borderBottom: '2px solid #e5e7eb',
               marginBottom: '24px'
             }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Cliente</p>
-                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>{selectedInspection.client}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Inspector</p>
-                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>{selectedInspection.inspector}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Tipo</p>
-                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>{selectedInspection.type}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Estado</p>
-                  <span style={{
-                    padding: '4px 12px',
-                    borderRadius: '16px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    backgroundColor: `${getStatusColor(selectedInspection.status)}20`,
-                    color: getStatusColor(selectedInspection.status)
-                  }}>
-                    {getStatusText(selectedInspection.status)}
-                  </span>
-                </div>
-              </div>
+              <button
+                onClick={() => setShowTemplateEditor(false)}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  borderBottom: !showTemplateEditor ? '2px solid #dc2626' : '2px solid transparent',
+                  color: !showTemplateEditor ? '#dc2626' : '#6b7280',
+                  fontWeight: !showTemplateEditor ? '600' : '400',
+                  cursor: 'pointer',
+                  marginBottom: '-2px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Información
+              </button>
+              <button
+                onClick={() => {
+                  setShowTemplateEditor(true)
+                  generateTemplate()
+                }}
+                style={{
+                  padding: '8px 16px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  borderBottom: showTemplateEditor ? '2px solid #dc2626' : '2px solid transparent',
+                  color: showTemplateEditor ? '#dc2626' : '#6b7280',
+                  fontWeight: showTemplateEditor ? '600' : '400',
+                  cursor: 'pointer',
+                  marginBottom: '-2px',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Plantilla del Documento
+              </button>
             </div>
 
-            {/* Progreso */}
-            {selectedInspection.status !== 'scheduled' && (
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  color: '#111827',
-                  marginBottom: '16px'
-                }}>
-                  Progreso de la Inspección
-                </h3>
-                <div style={{
-                  backgroundColor: '#e5e7eb',
-                  height: '20px',
-                  borderRadius: '10px',
-                  overflow: 'hidden',
-                  marginBottom: '8px'
-                }}>
-                  <div style={{
-                    width: `${selectedInspection.progress}%`,
-                    height: '100%',
-                    backgroundColor: getStatusColor(selectedInspection.status),
-                    transition: 'width 0.3s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: '14px',
-                    fontWeight: '600'
+            {/* Contenido según el tab seleccionado */}
+            {!showTemplateEditor ? (
+              // Vista de información (tu código actual)
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                gap: '20px'
+              }}>
+                <div>
+                  <h3 style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '12px'
                   }}>
-                    {selectedInspection.progress}%
+                    Información General
+                  </h3>
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    padding: '16px',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>Cliente:</span>
+                      <p style={{ fontSize: '15px', fontWeight: '500', color: '#111827', margin: '4px 0' }}>
+                        {selectedInspection.clientName}
+                      </p>
+                      {selectedInspection.clientEmail && (
+                        <p style={{ fontSize: '13px', color: '#6b7280' }}>{selectedInspection.clientEmail}</p>
+                      )}
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>Inspector:</span>
+                      <p style={{ fontSize: '15px', fontWeight: '500', color: '#111827', margin: '4px 0' }}>
+                        {selectedInspection.inspectorName}
+                      </p>
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>Tipo de Inspección:</span>
+                      <p style={{ fontSize: '15px', fontWeight: '500', color: '#111827', margin: '4px 0' }}>
+                        {selectedInspection.type}
+                      </p>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>Propiedad ID:</span>
+                      <p style={{ fontSize: '15px', fontWeight: '500', color: '#111827', margin: '4px 0' }}>
+                        {selectedInspection.propertyId}
+                      </p>
+                    </div>
                   </div>
                 </div>
-                {selectedInspection.checklistItems && (
-                  <p style={{ fontSize: '14px', color: '#6b7280' }}>
-                    {selectedInspection.checklistItems.completed} de {selectedInspection.checklistItems.total} items completados
-                  </p>
+
+                <div>
+                  <h3 style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: '#374151',
+                    marginBottom: '12px'
+                  }}>
+                    Estado y Fechas
+                  </h3>
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    padding: '16px',
+                    borderRadius: '8px'
+                  }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>Estado:</span>
+                      <div style={{ marginTop: '4px' }}>
+                        <span style={{
+                          padding: '4px 12px',
+                          borderRadius: '16px',
+                          fontSize: '13px',
+                          fontWeight: '500',
+                          backgroundColor: `${getStatusColor(selectedInspection.status)}20`,
+                          color: getStatusColor(selectedInspection.status)
+                        }}>
+                          {getStatusText(selectedInspection.status)}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>Fecha Programada:</span>
+                      <p style={{ fontSize: '15px', fontWeight: '500', color: '#111827', margin: '4px 0' }}>
+                        {formatDate(selectedInspection.scheduledDate)}
+                      </p>
+                    </div>
+                    {selectedInspection.completedDate && (
+                      <div>
+                        <span style={{ fontSize: '13px', color: '#6b7280' }}>Fecha Completada:</span>
+                        <p style={{ fontSize: '15px', fontWeight: '500', color: '#111827', margin: '4px 0' }}>
+                          {formatDate(selectedInspection.completedDate)}
+                        </p>
+                      </div>
+                    )}
+                    <div style={{ marginTop: '16px' }}>
+                      <span style={{ fontSize: '13px', color: '#6b7280' }}>Progreso:</span>
+                      <div style={{ marginTop: '8px' }}>
+                        <div style={{
+                          backgroundColor: '#e5e7eb',
+                          height: '8px',
+                          borderRadius: '4px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${selectedInspection.progress}%`,
+                            height: '100%',
+                            backgroundColor: getStatusColor(selectedInspection.status),
+                            transition: 'width 0.3s ease'
+                          }} />
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>
+                          {selectedInspection.progress}% completado
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedInspection.notes && (
+                  <div>
+                    <h3 style={{
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      color: '#374151',
+                      marginBottom: '12px'
+                    }}>
+                      Notas
+                    </h3>
+                    <div style={{
+                      backgroundColor: '#f9fafb',
+                      padding: '16px',
+                      borderRadius: '8px'
+                    }}>
+                      <p style={{ fontSize: '14px', color: '#374151', lineHeight: '1.5' }}>
+                        {selectedInspection.notes}
+                      </p>
+                    </div>
+                  </div>
                 )}
               </div>
-            )}
-
-            {/* Detalles adicionales */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '24px',
-              marginBottom: '24px'
-            }}>
+            ) : (
+              // Vista del editor de plantilla
               <div>
-                <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
-                  📅 Fecha de Inspección
-                </h4>
-                <p style={{ fontSize: '14px', color: '#6b7280' }}>{selectedInspection.date}</p>
-              </div>
-              {selectedInspection.duration && (
-                <div>
-                  <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
-                    ⏱️ Duración
-                  </h4>
-                  <p style={{ fontSize: '14px', color: '#6b7280' }}>{selectedInspection.duration}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Dirección completa */}
-            <div style={{ marginBottom: '24px' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
-                📍 Dirección
-              </h4>
-              <p style={{ fontSize: '14px', color: '#6b7280' }}>{selectedInspection.address}</p>
-            </div>
-
-            {/* Imágenes adjuntas */}
-            {selectedInspection.images && selectedInspection.images.length > 0 && (
-              <div style={{ marginBottom: '24px' }}>
-                <h4 style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
-                  📷 Imágenes de la Inspección
-                </h4>
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                  gap: '12px'
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '16px'
                 }}>
-                  {selectedInspection.images.map((img, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        aspectRatio: '1',
-                        backgroundColor: '#f3f4f6',
-                        borderRadius: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1px solid #e5e7eb',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      <span style={{ fontSize: '24px' }}>📷</span>
-                    </div>
-                  ))}
+                  <h3 style={{
+                    fontSize: '16px',
+                    fontWeight: '600',
+                    color: '#374151'
+                  }}>
+                    Plantilla del Documento
+                  </h3>
+                  <button
+                    onClick={generateTemplate}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#f3f4f6',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      color: '#374151'
+                    }}
+                  >
+                    Regenerar Plantilla
+                  </button>
+                </div>
+                
+                <textarea
+                  value={templateContent}
+                  onChange={(e) => setTemplateContent(e.target.value)}
+                  style={{
+                    width: '100%',
+                    minHeight: '400px',
+                    padding: '16px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    lineHeight: '1.6',
+                    resize: 'vertical'
+                  }}
+                />
+                
+                <div style={{
+                  marginTop: '16px',
+                  padding: '12px',
+                  backgroundColor: '#fef3c7',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  gap: '8px',
+                  alignItems: 'start'
+                }}>
+                  <span style={{ fontSize: '16px' }}>💡</span>
+                  <div style={{ fontSize: '13px', color: '#92400e' }}>
+                    <strong>Tip:</strong> Esta plantilla se usará para crear/actualizar el documento en Google Drive. 
+                    Puedes editarla antes de guardar los cambios.
+                  </div>
                 </div>
               </div>
             )}
@@ -1137,48 +1273,114 @@ export default function InspectionsPage() {
             <div style={{
               display: 'flex',
               gap: '12px',
-              justifyContent: 'flex-end',
+              justifyContent: 'space-between',
+              marginTop: '32px',
               paddingTop: '24px',
               borderTop: '1px solid #e5e7eb'
             }}>
-              {selectedInspection.status === 'in-progress' && (
-                <button
-                  onClick={() => {
-                    setShowInspectionDetails(false)
-                    router.push(`/dashboard/inspections/${selectedInspection.id}/continue`)
-                  }}
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Continuar Inspección
-                </button>
-              )}
-              {selectedInspection.status === 'completed' && (
-                <button
-                  style={{
-                    padding: '10px 20px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Generar Reporte PDF
-                </button>
-              )}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {showTemplateEditor ? (
+                  <button
+                    onClick={() => handleSaveTemplate(selectedInspection)}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#dc2626',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                      <polyline points="17 21 17 13 7 13 7 21"/>
+                      <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    Guardar Plantilla
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleGoogleDriveEdit(selectedInspection)}
+                      style={{
+                        padding: '10px 20px',
+                        border: '1px solid #3b82f6',
+                        borderRadius: '8px',
+                        backgroundColor: 'white',
+                        color: '#3b82f6',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#3b82f6'
+                        e.currentTarget.style.color = 'white'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'white'
+                        e.currentTarget.style.color = '#3b82f6'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                      </svg>
+                      {selectedInspection.googleDriveId ? 'Abrir en Google Drive' : 'Crear en Google Drive'}
+                    </button>
+                    
+                    <button
+                      onClick={() => handleDownloadPDF(selectedInspection)}
+                      style={{
+                        padding: '10px 20px',
+                        border: '1px solid #10b981',
+                        borderRadius: '8px',
+                        backgroundColor: 'white',
+                        color: '#10b981',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#10b981'
+                        e.currentTarget.style.color = 'white'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'white'
+                        e.currentTarget.style.color = '#10b981'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      Descargar PDF
+                    </button>
+                  </>
+                )}
+              </div>
+              
               <button
-                onClick={() => router.push(`/dashboard/inspections/${selectedInspection.id}/edit`)}
+                onClick={() => {
+                  setShowInspectionDetails(false)
+                  setShowTemplateEditor(false)
+                }}
                 style={{
                   padding: '10px 20px',
                   border: '1px solid #d1d5db',
@@ -1190,7 +1392,7 @@ export default function InspectionsPage() {
                   cursor: 'pointer'
                 }}
               >
-                Editar
+                Cerrar
               </button>
             </div>
           </div>
