@@ -1,139 +1,122 @@
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'INSPECTEN - Sistema de Inspecciones',
-  description: 'Plataforma profesional para gestión de inspecciones de propiedades',
-  icons: {
-    icon: '/favicon.ico',
-  },
-}
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
-export default function RootLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const pathname = usePathname()
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  const menuItems = [
+    { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+    { href: '/dashboard/assets', label: 'Propiedades', icon: '🏠' },
+    { href: '/dashboard/inspections', label: 'Inspecciones', icon: '📋' },
+    { href: '/dashboard/tasks', label: 'Tareas', icon: '✓' },
+    { href: '/dashboard/schedules', label: 'Agenda', icon: '📅' },
+    { href: '/dashboard/users', label: 'Usuarios', icon: '👥' },
+    { href: '/dashboard/checklists', label: 'Formularios', icon: '📝' },
+    { href: '/dashboard/settings', label: 'Configuración', icon: '⚙️' },
+  ]
+
   return (
-    <html lang="es">
-      <head>
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            * {
-              box-sizing: border-box;
-            }
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
+      {/* Sidebar */}
+      <aside style={{
+        width: sidebarOpen ? '250px' : '60px',
+        backgroundColor: 'white',
+        boxShadow: '1px 0 3px rgba(0, 0, 0, 0.1)',
+        transition: 'width 0.3s ease',
+        overflow: 'hidden'
+      }}>
+        {/* Logo */}
+        <div style={{
+          padding: '20px',
+          borderBottom: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <h2 style={{
+            fontSize: '20px',
+            fontWeight: 'bold',
+            color: '#dc2626',
+            margin: 0,
+            display: sidebarOpen ? 'block' : 'none'
+          }}>
+            INSPECTEN
+          </h2>
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{
+              padding: '4px',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '20px'
+            }}
+          >
+            ☰
+          </button>
+        </div>
 
-            body {
-              margin: 0;
-              padding: 0;
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              font-size: 14px;
-              line-height: 1.5;
-              color: #111827;
-              background-color: #f3f4f6;
-              -webkit-font-smoothing: antialiased;
-              -moz-osx-font-smoothing: grayscale;
-            }
+        {/* Menu */}
+        <nav style={{ padding: '20px 0' }}>
+          {menuItems.map((item) => {
+            const isActive = pathname === item.href
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '12px 20px',
+                  textDecoration: 'none',
+                  color: isActive ? '#dc2626' : '#374151',
+                  backgroundColor: isActive ? '#fee2e2' : 'transparent',
+                  borderLeft: isActive ? '3px solid #dc2626' : '3px solid transparent',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <span style={{ fontSize: '20px', marginRight: '12px' }}>{item.icon}</span>
+                <span style={{ display: sidebarOpen ? 'block' : 'none' }}>{item.label}</span>
+              </Link>
+            )
+          })}
+        </nav>
 
-            h1, h2, h3, h4, h5, h6 {
-              margin: 0;
-              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              color: #111827;
-            }
+        {/* User Info */}
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '20px',
+          right: '20px',
+          paddingTop: '20px',
+          borderTop: '1px solid #e5e7eb',
+          display: sidebarOpen ? 'block' : 'none'
+        }}>
+          <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0' }}>
+            Francisco Guarderas
+          </p>
+          <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
+            Admin
+          </p>
+        </div>
+      </aside>
 
-            p {
-              margin: 0;
-            }
-
-            a {
-              color: #dc2626;
-              text-decoration: none;
-              transition: 150ms ease-in-out;
-            }
-
-            a:hover {
-              color: #b91c1c;
-            }
-
-            /* Scrollbar personalizada */
-            ::-webkit-scrollbar {
-              width: 8px;
-              height: 8px;
-            }
-
-            ::-webkit-scrollbar-track {
-              background: #f3f4f6;
-            }
-
-            ::-webkit-scrollbar-thumb {
-              background: #d1d5db;
-              border-radius: 4px;
-            }
-
-            ::-webkit-scrollbar-thumb:hover {
-              background: #9ca3af;
-            }
-
-            /* Animaciones */
-            @keyframes fadeIn {
-              from {
-                opacity: 0;
-                transform: translateY(10px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-
-            @keyframes slideIn {
-              from {
-                transform: translateX(-100%);
-              }
-              to {
-                transform: translateX(0);
-              }
-            }
-
-            @keyframes spin {
-              to {
-                transform: rotate(360deg);
-              }
-            }
-
-            /* Utilidades */
-            .fade-in {
-              animation: fadeIn 0.3s ease-out;
-            }
-
-            .slide-in {
-              animation: slideIn 0.3s ease-out;
-            }
-
-            /* Focus visible */
-            :focus-visible {
-              outline: 2px solid #dc2626;
-              outline-offset: 2px;
-            }
-
-            /* Selección de texto */
-            ::selection {
-              background-color: #dc2626;
-              color: white;
-            }
-
-            /* Reset de botones */
-            button {
-              font-family: inherit;
-            }
-
-            /* Reset de inputs */
-            input, select, textarea {
-              font-family: inherit;
-            }
-          `
-        }} />
-      </head>
-      <body>{children}</body>
-    </html>
+      {/* Main Content */}
+      <main style={{
+        flex: 1,
+        padding: '20px 40px',
+        overflow: 'auto'
+      }}>
+        {children}
+      </main>
+    </div>
   )
 }

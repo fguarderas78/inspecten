@@ -7,466 +7,369 @@ interface Property {
   id: number
   name: string
   address: string
-  owner: string
-  type: string
+  template: string
+  clientName: string
+  clientEmail: string
+  clientPhone: string
   status: 'active' | 'inactive'
-  lastInspection?: {
-    date: string
-    inspector: string
-    status: 'completed' | 'pending'
-  }
-  pendingInspections: number
-  completedInspections: number
-  images?: string[]
+  lastInspection: string
+  nextInspection: string
+  inspections: number
+  createdAt: string
 }
 
-export default function PropertiesPage() {
+interface Template {
+  id: number
+  name: string
+  category: string
+}
+
+export default function AssetsPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterType, setFilterType] = useState('all')
-  const [filterStatus, setFilterStatus] = useState('all')
+  const [filterTemplate, setFilterTemplate] = useState('all')
   const [showNewPropertyModal, setShowNewPropertyModal] = useState(false)
-  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null)
-  const [showPropertyDetails, setShowPropertyDetails] = useState(false)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  const [imagePreview, setImagePreview] = useState<string[]>([])
-  const [activeActionMenu, setActiveActionMenu] = useState<number | null>(null)
+  const [editingProperty, setEditingProperty] = useState<Property | null>(null)
 
-  // Datos de ejemplo
-  const [properties] = useState<Property[]>([
+  // Templates/Formularios disponibles
+  const templates: Template[] = [
+    { id: 1, name: 'Inspección Residencial Completa', category: 'Residencial' },
+    { id: 2, name: 'Inspección Comercial Básica', category: 'Comercial' },
+    { id: 3, name: 'Evaluación Industrial', category: 'Industrial' },
+    { id: 4, name: 'Checklist de Seguridad', category: 'Seguridad' },
+    { id: 5, name: 'Inspección Pre-Venta', category: 'Residencial' },
+    { id: 6, name: 'Evaluación Post-Construcción', category: 'Construcción' }
+  ]
+
+  // Estado para las propiedades con datos iniciales
+  const [properties, setProperties] = useState<Property[]>([
     {
       id: 1,
-      name: 'Casa Los Robles',
-      address: 'Av. Principal 123, Quito',
-      owner: 'Juan Pérez',
-      type: 'Residencial',
+      name: 'Torre Alfa - Piso 12',
+      address: 'Av. Principal 123, Guayaquil',
+      template: 'Inspección Residencial Completa',
+      clientName: 'María García',
+      clientEmail: 'maria.garcia@email.com',
+      clientPhone: '0991234567',
       status: 'active',
-      lastInspection: {
-        date: '2024-01-15',
-        inspector: 'Carlos López',
-        status: 'completed'
-      },
-      pendingInspections: 0,
-      completedInspections: 5,
-      images: ['/img1.jpg']
+      lastInspection: '2024-01-15',
+      nextInspection: '2024-02-15',
+      inspections: 8,
+      createdAt: '2023-06-15'
     },
     {
       id: 2,
       name: 'Edificio Central',
-      address: 'Calle 45 #789, Guayaquil',
-      owner: 'María García',
-      type: 'Comercial',
+      address: 'Calle 9 de Octubre 456',
+      template: 'Inspección Comercial Básica',
+      clientName: 'Juan Pérez',
+      clientEmail: 'juan.perez@empresa.com',
+      clientPhone: '0998765432',
       status: 'active',
-      lastInspection: {
-        date: '2024-01-20',
-        inspector: 'Ana Martínez',
-        status: 'pending'
-      },
-      pendingInspections: 1,
-      completedInspections: 3,
-      images: ['/img2.jpg', '/img3.jpg']
-    },
-    {
-      id: 3,
-      name: 'Local Plaza Norte',
-      address: 'Plaza Norte Local 12',
-      owner: 'Roberto Silva',
-      type: 'Comercial',
-      status: 'active',
-      pendingInspections: 2,
-      completedInspections: 8
-    },
-    {
-      id: 4,
-      name: 'Departamento Sky Tower',
-      address: 'Torre Sky Piso 15',
-      owner: 'Carmen Ruiz',
-      type: 'Residencial',
-      status: 'inactive',
-      lastInspection: {
-        date: '2023-12-10',
-        inspector: 'Pedro Sánchez',
-        status: 'completed'
-      },
-      pendingInspections: 0,
-      completedInspections: 12
+      lastInspection: '2024-01-10',
+      nextInspection: '2024-02-10',
+      inspections: 12,
+      createdAt: '2023-03-20'
     }
   ])
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    setSelectedImages(prev => [...prev, ...files])
-    
-    // Preview
-    files.forEach(file => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setImagePreview(prev => [...prev, reader.result as string])
-      }
-      reader.readAsDataURL(file)
+  // Estado para el formulario
+  const [formData, setFormData] = useState({
+    name: '',
+    address: '',
+    template: '',
+    clientName: '',
+    clientEmail: '',
+    clientPhone: '',
+    status: 'active' as 'active' | 'inactive'
+  })
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
     })
   }
 
-  const removeImage = (index: number) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index))
-    setImagePreview(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const viewPropertyDetails = (property: Property) => {
-    setSelectedProperty(property)
-    setShowPropertyDetails(true)
-    setActiveActionMenu(null)
-  }
-
-  // Cerrar menú cuando se hace clic fuera
-  const handleClickOutside = () => {
-    setActiveActionMenu(null)
-  }
-
-  // Filtrado
-  const filteredProperties = properties.filter(property => {
-    const matchesSearch = property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         property.owner.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesType = filterType === 'all' || property.type === filterType
-    const matchesStatus = filterStatus === 'all' || property.status === filterStatus
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
     
-    return matchesSearch && matchesType && matchesStatus
+    if (editingProperty) {
+      // Actualizar propiedad existente
+      setProperties(properties.map(prop => 
+        prop.id === editingProperty.id 
+          ? { ...prop, ...formData }
+          : prop
+      ))
+    } else {
+      // Crear nueva propiedad
+      const newProperty: Property = {
+        id: properties.length + 1,
+        ...formData,
+        lastInspection: '-',
+        nextInspection: '-',
+        inspections: 0,
+        createdAt: new Date().toISOString().split('T')[0]
+      }
+      setProperties([...properties, newProperty])
+    }
+    
+    // Resetear formulario y cerrar modal
+    setFormData({
+      name: '',
+      address: '',
+      template: '',
+      clientName: '',
+      clientEmail: '',
+      clientPhone: '',
+      status: 'active'
+    })
+    setShowNewPropertyModal(false)
+    setEditingProperty(null)
+  }
+
+  const handleEdit = (property: Property) => {
+    setEditingProperty(property)
+    setFormData({
+      name: property.name,
+      address: property.address,
+      template: property.template,
+      clientName: property.clientName,
+      clientEmail: property.clientEmail,
+      clientPhone: property.clientPhone,
+      status: property.status
+    })
+    setShowNewPropertyModal(true)
+  }
+
+  const handleNewInspection = (propertyId: number) => {
+    router.push(`/dashboard/inspections/new?property=${propertyId}`)
+  }
+
+  const filteredProperties = properties.filter(property => {
+    const matchesSearch = 
+      property.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      property.clientName.toLowerCase().includes(searchTerm.toLowerCase())
+    
+    const matchesFilter = filterTemplate === 'all' || property.template === filterTemplate
+    
+    return matchesSearch && matchesFilter
   })
 
   return (
-    <div onClick={handleClickOutside}>
+    <div>
       {/* Header */}
-      <div style={{
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}>
+          Propiedades
+        </h1>
+        <p style={{ color: '#6b7280' }}>
+          Gestiona las propiedades y sus inspecciones
+        </p>
+      </div>
+
+      {/* Filters and Actions */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
         marginBottom: '24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        flexWrap: 'wrap',
+        gap: '16px'
       }}>
-        <div>
-          <h1 style={{
-            fontSize: '28px',
-            fontWeight: 'bold',
-            color: '#111827',
-            marginBottom: '8px'
-          }}>
-            Propiedades
-          </h1>
-          <p style={{ color: '#6b7280' }}>
-            Gestiona todas las propiedades registradas
-          </p>
+        <div style={{ display: 'flex', gap: '12px', flex: 1, flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="Buscar por nombre, dirección o cliente..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              minWidth: '300px'
+            }}
+          />
+          <select
+            value={filterTemplate}
+            onChange={(e) => setFilterTemplate(e.target.value)}
+            style={{
+              padding: '8px 16px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '14px',
+              backgroundColor: 'white'
+            }}
+          >
+            <option value="all">Todos los formularios</option>
+            {templates.map(template => (
+              <option key={template.id} value={template.name}>{template.name}</option>
+            ))}
+          </select>
         </div>
         <button
           onClick={() => setShowNewPropertyModal(true)}
           style={{
-            padding: '10px 20px',
+            padding: '8px 20px',
             backgroundColor: '#dc2626',
             color: 'white',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '6px',
             fontSize: '14px',
             fontWeight: '500',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
+            cursor: 'pointer'
           }}
         >
-          <span>+</span> Nueva Propiedad
+          + Nueva Propiedad
         </button>
       </div>
 
-      {/* Filtros */}
+      {/* Properties Table */}
       <div style={{
         backgroundColor: 'white',
-        padding: '20px',
-        borderRadius: '12px',
-        marginBottom: '24px',
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-      }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 200px 200px',
-          gap: '16px',
-          alignItems: 'center'
-        }}>
-          <input
-            type="text"
-            placeholder="Buscar por nombre, dirección o propietario..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              padding: '10px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px'
-            }}
-          />
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            style={{
-              padding: '10px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px'
-            }}
-          >
-            <option value="all">Todos los tipos</option>
-            <option value="Residencial">Residencial</option>
-            <option value="Comercial">Comercial</option>
-            <option value="Industrial">Industrial</option>
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              padding: '10px 16px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '14px'
-            }}
-          >
-            <option value="all">Todos los estados</option>
-            <option value="active">Activo</option>
-            <option value="inactive">Inactivo</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Lista de Propiedades Compacta */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
+        borderRadius: '8px',
         boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
         overflow: 'hidden'
       }}>
-        {filteredProperties.map((property, index) => (
-          <div
-            key={property.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              padding: '12px 20px',
-              borderBottom: index < filteredProperties.length - 1 ? '1px solid #e5e7eb' : 'none',
-              transition: 'background-color 0.2s',
-              position: 'relative'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#f9fafb'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'white'
-            }}
-          >
-            {/* Información principal */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                marginBottom: '4px'
-              }}>
-                <h3 style={{
-                  fontSize: '15px',
-                  fontWeight: '600',
-                  color: '#111827',
-                  margin: 0,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis'
-                }}>
-                  {property.name}
-                </h3>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  backgroundColor: property.type === 'Residencial' ? '#dbeafe' : '#fef3c7',
-                  color: property.type === 'Residencial' ? '#1e40af' : '#92400e',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {property.type}
-                </span>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '11px',
-                  fontWeight: '500',
-                  backgroundColor: property.status === 'active' ? '#d1fae5' : '#fee2e2',
-                  color: property.status === 'active' ? '#065f46' : '#991b1b',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {property.status === 'active' ? 'Activo' : 'Inactivo'}
-                </span>
-              </div>
-              <div style={{
-                fontSize: '13px',
-                color: '#6b7280',
-                display: 'flex',
-                gap: '16px',
-                alignItems: 'center'
-              }}>
-                <span>{property.address}</span>
-                <span>•</span>
-                <span>Propietario: {property.owner}</span>
-                {property.lastInspection && (
-                  <>
-                    <span>•</span>
-                    <span style={{
-                      color: property.lastInspection.status === 'completed' ? '#10b981' : '#f59e0b'
-                    }}>
-                      {property.lastInspection.status === 'completed' ? '✓' : '⏳'} Última inspección: {property.lastInspection.date}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Estadísticas rápidas */}
-            <div style={{
-              display: 'flex',
-              gap: '24px',
-              marginRight: '20px',
-              fontSize: '13px'
-            }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: '600', color: '#10b981' }}>{property.completedInspections}</div>
-                <div style={{ color: '#9ca3af', fontSize: '11px' }}>Completadas</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: '600', color: '#f59e0b' }}>{property.pendingInspections}</div>
-                <div style={{ color: '#9ca3af', fontSize: '11px' }}>Pendientes</div>
-              </div>
-            </div>
-
-            {/* Botón de acciones */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setActiveActionMenu(activeActionMenu === property.id ? null : property.id)
-              }}
-              style={{
-                padding: '6px',
-                backgroundColor: 'transparent',
-                border: '1px solid #e5e7eb',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '32px',
-                height: '32px'
-              }}
-            >
-              ⋮
-            </button>
-
-            {/* Menú de acciones */}
-            {activeActionMenu === property.id && (
-              <div 
-                style={{
-                  position: 'absolute',
-                  right: '20px',
-                  top: '100%',
-                  backgroundColor: 'white',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                  zIndex: 10,
-                  minWidth: '180px',
-                  marginTop: '4px'
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Propiedad
+              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Cliente
+              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Formulario
+              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Inspecciones
+              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Estado
+              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Próxima Inspección
+              </th>
+              <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredProperties.map((property, index) => (
+              <tr 
+                key={property.id}
+                style={{ 
+                  borderBottom: index < filteredProperties.length - 1 ? '1px solid #e5e7eb' : 'none',
+                  transition: 'background-color 0.2s'
                 }}
-                onClick={(e) => e.stopPropagation()}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
               >
-                <button
-                  onClick={() => viewPropertyDetails(property)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
+                <td style={{ padding: '16px' }}>
+                  <div>
+                    <p style={{ fontWeight: '600', color: '#111827', marginBottom: '4px' }}>
+                      {property.name}
+                    </p>
+                    <p style={{ fontSize: '14px', color: '#6b7280' }}>
+                      {property.address}
+                    </p>
+                  </div>
+                </td>
+                <td style={{ padding: '16px' }}>
+                  <div>
+                    <p style={{ color: '#111827', marginBottom: '2px' }}>
+                      {property.clientName}
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#6b7280' }}>
+                      {property.clientEmail}
+                    </p>
+                    <p style={{ fontSize: '13px', color: '#6b7280' }}>
+                      {property.clientPhone}
+                    </p>
+                  </div>
+                </td>
+                <td style={{ padding: '16px' }}>
+                  <span style={{
                     fontSize: '14px',
-                    color: '#374151',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  👁️ Ver detalles
-                </button>
-                <button
-                  onClick={() => router.push(`/dashboard/inspections/new?property=${property.id}`)}
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    color: '#374151',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  📋 Nueva inspección
-                </button>
-                <button
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    color: '#374151',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f3f4f6'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  ✏️ Editar
-                </button>
-                <hr style={{ margin: 0, border: 'none', borderTop: '1px solid #e5e7eb' }} />
-                <button
-                  style={{
-                    width: '100%',
-                    padding: '10px 16px',
-                    backgroundColor: 'transparent',
-                    border: 'none',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    fontSize: '14px',
+                    padding: '4px 8px',
+                    backgroundColor: '#fef2f2',
                     color: '#dc2626',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fee2e2'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  🗑️ Eliminar
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
+                    borderRadius: '4px',
+                    display: 'inline-block'
+                  }}>
+                    {property.template}
+                  </span>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'center' }}>
+                  <span style={{ 
+                    fontSize: '20px', 
+                    fontWeight: 'bold',
+                    color: property.inspections > 0 ? '#10b981' : '#6b7280'
+                  }}>
+                    {property.inspections}
+                  </span>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'center' }}>
+                  <span style={{
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    backgroundColor: property.status === 'active' ? '#d1fae5' : '#e5e7eb',
+                    color: property.status === 'active' ? '#065f46' : '#6b7280'
+                  }}>
+                    {property.status === 'active' ? 'Activo' : 'Inactivo'}
+                  </span>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '14px', color: '#111827' }}>
+                    {property.nextInspection}
+                  </p>
+                </td>
+                <td style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => handleNewInspection(property.id)}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#dc2626',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Nueva Inspección
+                    </button>
+                    <button
+                      onClick={() => handleEdit(property)}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: 'white',
+                        color: '#374151',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Editar
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
-      {/* Modal Nueva Propiedad */}
+      {/* New/Edit Property Modal */}
       {showNewPropertyModal && (
         <div style={{
           position: 'fixed',
@@ -478,259 +381,209 @@ export default function PropertiesPage() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000
-        }}
-        onClick={() => setShowNewPropertyModal(false)}
-        >
-          <div 
-            style={{
-              backgroundColor: 'white',
-              padding: '32px',
-              borderRadius: '12px',
-              width: '90%',
-              maxWidth: '600px',
-              maxHeight: '90vh',
-              overflow: 'auto'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{
-              fontSize: '24px',
-              fontWeight: 'bold',
-              marginBottom: '24px',
-              color: '#111827'
-            }}>
-              Nueva Propiedad
+          zIndex: 50
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '8px',
+            padding: '32px',
+            width: '90%',
+            maxWidth: '600px',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px' }}>
+              {editingProperty ? 'Editar Propiedad' : 'Nueva Propiedad'}
             </h2>
-
-            <form>
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Nombre de la Propiedad
-                </label>
-                <input
-                  type="text"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                  placeholder="Ej: Casa Los Robles"
-                />
-              </div>
-
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Dirección
-                </label>
-                <input
-                  type="text"
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
-                    fontSize: '14px'
-                  }}
-                  placeholder="Ej: Av. Principal 123, Quito"
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#374151'
-                  }}>
-                    Propietario
+            
+            <form onSubmit={handleSubmit}>
+              {/* Información de la Propiedad */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
+                  Información de la Propiedad
+                </h3>
+                
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Nombre de la Propiedad *
                   </label>
                   <input
                     type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
                     style={{
                       width: '100%',
-                      padding: '10px',
+                      padding: '8px 12px',
                       border: '1px solid #d1d5db',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       fontSize: '14px'
                     }}
-                    placeholder="Nombre del propietario"
                   />
                 </div>
 
-                <div>
-                  <label style={{
-                    display: 'block',
-                    marginBottom: '8px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    color: '#374151'
-                  }}>
-                    Tipo de Propiedad
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Dirección *
                   </label>
-                  <select
+                  <input
+                    type="text"
+                    name="address"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    required
                     style={{
                       width: '100%',
-                      padding: '10px',
+                      padding: '8px 12px',
                       border: '1px solid #d1d5db',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       fontSize: '14px'
                     }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Formulario de Inspección *
+                  </label>
+                  <select
+                    name="template"
+                    value={formData.template}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      backgroundColor: 'white'
+                    }}
                   >
-                    <option value="">Seleccionar tipo</option>
-                    <option value="Residencial">Residencial</option>
-                    <option value="Comercial">Comercial</option>
-                    <option value="Industrial">Industrial</option>
+                    <option value="">Selecciona un formulario...</option>
+                    {templates.map(template => (
+                      <option key={template.id} value={template.name}>
+                        {template.name} ({template.category})
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              {/* Sección de imágenes */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Imágenes de la Propiedad
-                </label>
+              {/* Información del Cliente */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
+                  Información del Cliente
+                </h3>
                 
-                <div style={{
-                  border: '2px dashed #d1d5db',
-                  borderRadius: '8px',
-                  padding: '20px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  backgroundColor: '#f9fafb'
-                }}
-                onClick={() => document.getElementById('imageUpload')?.click()}
-                >
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Nombre del Cliente *
+                  </label>
                   <input
-                    id="imageUpload"
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    style={{ display: 'none' }}
+                    type="text"
+                    name="clientName"
+                    value={formData.clientName}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
                   />
-                  <div style={{ fontSize: '40px', marginBottom: '8px' }}>📷</div>
-                  <p style={{ color: '#6b7280', fontSize: '14px' }}>
-                    Haz clic o arrastra imágenes aquí
-                  </p>
-                  <p style={{ color: '#9ca3af', fontSize: '12px', marginTop: '4px' }}>
-                    PNG, JPG hasta 10MB
-                  </p>
                 </div>
 
-                {/* Vista previa de imágenes */}
-                {imagePreview.length > 0 && (
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                    gap: '12px',
-                    marginTop: '16px'
-                  }}>
-                    {imagePreview.map((preview, index) => (
-                      <div key={index} style={{ position: 'relative' }}>
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          style={{
-                            width: '100%',
-                            height: '100px',
-                            objectFit: 'cover',
-                            borderRadius: '8px',
-                            border: '1px solid #e5e7eb'
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeImage(index)}
-                          style={{
-                            position: 'absolute',
-                            top: '4px',
-                            right: '4px',
-                            backgroundColor: '#dc2626',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '50%',
-                            width: '24px',
-                            height: '24px',
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Email del Cliente *
+                  </label>
+                  <input
+                    type="email"
+                    name="clientEmail"
+                    value={formData.clientEmail}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                    Teléfono del Cliente *
+                  </label>
+                  <input
+                    type="tel"
+                    name="clientPhone"
+                    value={formData.clientPhone}
+                    onChange={handleInputChange}
+                    required
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
               </div>
 
+              {/* Estado */}
               <div style={{ marginBottom: '24px' }}>
-                <label style={{
-                  display: 'block',
-                  marginBottom: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: '#374151'
-                }}>
-                  Notas adicionales
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px', fontWeight: '500' }}>
+                  Estado
                 </label>
-                <textarea
-                  rows={3}
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
                   style={{
                     width: '100%',
-                    padding: '10px',
+                    padding: '8px 12px',
                     border: '1px solid #d1d5db',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     fontSize: '14px',
-                    resize: 'vertical'
+                    backgroundColor: 'white'
                   }}
-                  placeholder="Información adicional sobre la propiedad..."
-                />
+                >
+                  <option value="active">Activo</option>
+                  <option value="inactive">Inactivo</option>
+                </select>
               </div>
 
-              <div style={{
-                display: 'flex',
-                gap: '12px',
-                justifyContent: 'flex-end'
-              }}>
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
                   onClick={() => {
                     setShowNewPropertyModal(false)
-                    setSelectedImages([])
-                    setImagePreview([])
+                    setEditingProperty(null)
+                    setFormData({
+                      name: '',
+                      address: '',
+                      template: '',
+                      clientName: '',
+                      clientEmail: '',
+                      clientPhone: '',
+                      status: 'active'
+                    })
                   }}
                   style={{
                     padding: '10px 20px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '8px',
                     backgroundColor: 'white',
                     color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
                     fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer'
@@ -745,242 +598,16 @@ export default function PropertiesPage() {
                     backgroundColor: '#dc2626',
                     color: 'white',
                     border: 'none',
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     fontSize: '14px',
                     fontWeight: '500',
                     cursor: 'pointer'
                   }}
                 >
-                  Crear Propiedad
+                  {editingProperty ? 'Guardar Cambios' : 'Crear Propiedad'}
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Detalles de Propiedad */}
-      {showPropertyDetails && selectedProperty && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}
-        onClick={() => setShowPropertyDetails(false)}
-        >
-          <div 
-            style={{
-              backgroundColor: 'white',
-              padding: '32px',
-              borderRadius: '12px',
-              width: '90%',
-              maxWidth: '700px',
-              maxHeight: '90vh',
-              overflow: 'auto'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'start',
-              marginBottom: '24px'
-            }}>
-              <div>
-                <h2 style={{
-                  fontSize: '24px',
-                  fontWeight: 'bold',
-                  color: '#111827',
-                  marginBottom: '8px'
-                }}>
-                  {selectedProperty.name}
-                </h2>
-                <p style={{ color: '#6b7280' }}>{selectedProperty.address}</p>
-              </div>
-              <button
-                onClick={() => setShowPropertyDetails(false)}
-                style={{
-                  padding: '8px',
-                  backgroundColor: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '20px',
-                  color: '#6b7280'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Información básica */}
-            <div style={{
-              backgroundColor: '#f9fafb',
-              padding: '20px',
-              borderRadius: '8px',
-              marginBottom: '24px'
-            }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Propietario</p>
-                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>{selectedProperty.owner}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Tipo</p>
-                  <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827' }}>{selectedProperty.type}</p>
-                </div>
-                <div>
-                  <p style={{ fontSize: '13px', color: '#6b7280', marginBottom: '4px' }}>Estado</p>
-                  <span style={{
-                    padding: '4px 12px',
-                    borderRadius: '16px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    backgroundColor: selectedProperty.status === 'active' ? '#d1fae5' : '#fee2e2',
-                    color: selectedProperty.status === 'active' ? '#065f46' : '#991b1b'
-                  }}>
-                    {selectedProperty.status === 'active' ? 'Activo' : 'Inactivo'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Estadísticas de inspecciones */}
-            <div style={{ marginBottom: '24px' }}>
-              <h3 style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#111827',
-                marginBottom: '16px'
-              }}>
-                Resumen de Inspecciones
-              </h3>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr 1fr',
-                gap: '16px'
-              }}>
-                <div style={{
-                  backgroundColor: '#dbeafe',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e40af' }}>
-                    {selectedProperty.completedInspections}
-                  </p>
-                  <p style={{ fontSize: '14px', color: '#1e40af' }}>Completadas</p>
-                </div>
-                <div style={{
-                  backgroundColor: '#fef3c7',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#92400e' }}>
-                    {selectedProperty.pendingInspections}
-                  </p>
-                  <p style={{ fontSize: '14px', color: '#92400e' }}>Pendientes</p>
-                </div>
-                <div style={{
-                  backgroundColor: '#e0e7ff',
-                  padding: '16px',
-                  borderRadius: '8px',
-                  textAlign: 'center'
-                }}>
-                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#4338ca' }}>
-                    {selectedProperty.completedInspections + selectedProperty.pendingInspections}
-                  </p>
-                  <p style={{ fontSize: '14px', color: '#4338ca' }}>Total</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Última inspección */}
-            {selectedProperty.lastInspection && (
-              <div style={{ marginBottom: '24px' }}>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: '600',
-                  color: '#111827',
-                  marginBottom: '16px'
-                }}>
-                  Última Inspección
-                </h3>
-                <div style={{
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  padding: '16px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#6b7280' }}>Fecha:</span>
-                    <span style={{ fontWeight: '500' }}>{selectedProperty.lastInspection.date}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ color: '#6b7280' }}>Inspector:</span>
-                    <span style={{ fontWeight: '500' }}>{selectedProperty.lastInspection.inspector}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#6b7280' }}>Estado:</span>
-                    <span style={{
-                      fontWeight: '500',
-                      color: selectedProperty.lastInspection.status === 'completed' ? '#10b981' : '#f59e0b'
-                    }}>
-                      {selectedProperty.lastInspection.status === 'completed' ? 'Completada' : 'Pendiente'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Acciones */}
-            <div style={{
-              display: 'flex',
-              gap: '12px',
-              justifyContent: 'flex-end',
-              paddingTop: '24px',
-              borderTop: '1px solid #e5e7eb'
-            }}>
-              <button
-                onClick={() => {
-                  setShowPropertyDetails(false)
-                  router.push(`/dashboard/inspections/new?property=${selectedProperty.id}`)
-                }}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                Nueva Inspección
-              </button>
-              <button
-                onClick={() => router.push(`/dashboard/properties/${selectedProperty.id}/inspections`)}
-                style={{
-                  padding: '10px 20px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  backgroundColor: 'white',
-                  color: '#374151',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
-                }}
-              >
-                Ver Todas las Inspecciones
-              </button>
-            </div>
           </div>
         </div>
       )}
