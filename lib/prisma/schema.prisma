@@ -1,0 +1,59 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Inspection {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  propertyId      String
+  clientName      String
+  clientEmail     String?
+  type            String
+  status          String   @default("programada")
+  progress        Int      @default(0)
+  
+  // Google Drive
+  driveFolder     String?
+  driveFolderUrl  String?
+  documentId      String?
+  documentUrl     String?
+  
+  inspectorId     String
+  inspectorName   String
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Property {
+  id              String   @id @default(cuid())
+  name            String
+  address         String
+  type            String   // Residencial, Comercial, Industrial
+  ownerName       String
+  ownerEmail      String?
+  ownerPhone      String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  name            String
+  role            String   // admin, inspector, viewer
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
